@@ -16,9 +16,11 @@ import {
   Flag,
   Backpack,
   Zap,
+  HelpCircle,
+  X,
 } from 'lucide-react';
 
-function Button({ children, className = '', variant, ...props }) {
+function Button({ children, className = '', ...props }) {
   return (
     <button
       className={`px-4 py-2 rounded-xl font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
@@ -54,6 +56,34 @@ const ACTION_ICONS = {
   search: Search,
   hide: Shield,
   heal: Beer,
+};
+
+const ACTION_META = {
+  move: {
+    label: 'MOVERSE',
+    icon: '👣',
+    help: 'Avanza al nodo elegido en el mapa.',
+  },
+  attack: {
+    label: 'ATACAR',
+    icon: '🔫',
+    help: 'Gasta 2 munición y evita el próximo peligro.',
+  },
+  search: {
+    label: 'BUSCAR',
+    icon: '🥜',
+    help: 'Gana 1 munición.',
+  },
+  hide: {
+    label: 'OCULTARSE',
+    icon: '🛡️',
+    help: 'Evita el próximo peligro, salvo en Zona abierta.',
+  },
+  heal: {
+    label: 'CURAR',
+    icon: '🍺',
+    help: 'Recupera 1 salud.',
+  },
 };
 
 const ACTION_DECK = [
@@ -240,6 +270,7 @@ const EVENT_DECK = [
     text: 'Un corrillo zombie bloquea la calle escuchando un mitin eterno. Pierdes 1 acción.',
     apply: s => ({ ...s, actionsLeft: Math.max(0, s.actionsLeft - 1) }),
   },
+
   {
     id: 'ev_conocido_01',
     name: 'Zombie Conocido',
@@ -264,6 +295,7 @@ const EVENT_DECK = [
     text: 'Te intenta poner al día de toda su familia zombie. Pierdes 2 de salud.',
     apply: s => ({ ...s, health: Math.max(0, s.health - 2) }),
   },
+
   {
     id: 'ev_empresario_01',
     name: 'Zombie Empresario',
@@ -296,6 +328,7 @@ const EVENT_DECK = [
     text: 'Un Empresario zombie convoca una reunión de seguimiento. Pierdes 1 acción.',
     apply: s => ({ ...s, actionsLeft: Math.max(0, s.actionsLeft - 1) }),
   },
+
   {
     id: 'ev_guiso_01',
     name: 'Olor a guiso',
@@ -324,6 +357,7 @@ const EVENT_DECK = [
       ammo: Math.min(MAX_AMMO, s.ammo + 1),
     }),
   },
+
   {
     id: 'ev_calle_01',
     name: 'Calle cortada',
@@ -348,6 +382,7 @@ const EVENT_DECK = [
     text: 'No avanzan, pero tampoco dejan pasar. Pierdes 1 acción.',
     apply: s => ({ ...s, actionsLeft: Math.max(0, s.actionsLeft - 1) }),
   },
+
   {
     id: 'ev_zona_01',
     name: 'Eco subterráneo',
@@ -515,15 +550,84 @@ function randomFrom(deck) {
   return deck[Math.floor(Math.random() * deck.length)];
 }
 
-function drawHand(extra = 0) {
-  return Array.from({ length: 3 + extra }, (_, i) => ({
-    ...randomFrom(ACTION_DECK),
-    uid: uid(i),
-  }));
+function drawHand(extra = 0, ensureMove = false) {
+  const count = 3 + extra;
+
+  if (!ensureMove) {
+    return Array.from({ length: count }, (_, i) => ({
+      ...randomFrom(ACTION_DECK),
+      uid: uid(i),
+    }));
+  }
+
+  const moveCards = ACTION_DECK.filter(card => card.type === 'move');
+  const nonMoveCards = ACTION_DECK.filter(card => card.type !== 'move');
+
+  const hand = [
+    {
+      ...randomFrom(moveCards),
+      uid: uid('initial-move'),
+    },
+  ];
+
+  while (hand.length < count) {
+    hand.push({
+      ...randomFrom(nonMoveCards),
+      uid: uid(hand.length),
+    });
+  }
+
+  return hand.sort(() => Math.random() - 0.5);
 }
 
 function randomEvent() {
   return randomFrom(EVENT_DECK);
+}
+
+function getCurrentTip(game) {
+  const node = MAP[game.current];
+  const hasMove = game.hand.some(c => c.type === 'move');
+  const hasHeal = game.hand.some(c => c.type === 'heal');
+  const hasSearch = game.hand.some(c => c.type === 'search');
+  const hasAttack = game.hand.some(c => c.type === 'attack');
+
+  if (game.status === 'won') {
+    return '🏁 Has llegado a La Frontera. Reinicia si quieres probar otra ruta.';
+  }
+
+  if (game.status === 'lost') {
+    return '💀 Has caído en Ubricalipsis. Reinicia y prueba a prepararte antes de cruzar zonas abiertas.';
+  }
+
+  if (game.needsActionAfterMove) {
+    return '⚠️ Te has movido y ahora no tienes cartas de MOVERSE. Juega una carta de acción para prepararte: BUSCAR, CURAR, ATACAR u OCULTARSE.';
+  }
+
+  if (game.health <= 3 && hasHeal) {
+    return '❤️ Tu salud está baja. Te conviene jugar una carta de CURAR antes de terminar turno.';
+  }
+
+  if (game.ammo <= 1 && hasSearch) {
+    return '🔫 Tienes poca munición. Juega una carta de BUSCAR o intenta pasar por un Taller.';
+  }
+
+  if (node.type === 'Zona abierta' && hasAttack) {
+    return '⚡ Estás en Zona abierta: al terminar turno habrá 2 eventos. ATACAR puede evitar el próximo peligro.';
+  }
+
+  if (node.type === 'Zona abierta') {
+    return '⚡ Estás en Zona abierta. Cuidado: OCULTARSE no funciona aquí y se resolverán 2 eventos.';
+  }
+
+  if (game.chosenNext && hasMove) {
+    return `👣 Ruta elegida: ${MAP[game.chosenNext].name}. Ahora juega una carta de MOVERSE para avanzar.`;
+  }
+
+  if (game.chosenNext && !hasMove) {
+    return '⏳ Ya tienes ruta elegida, pero no tienes carta de MOVERSE. Juega una carta de acción o termina turno para robar nuevas cartas.';
+  }
+
+  return '👉 Elige primero uno de los caminos amarillos del mapa. Después juega una carta 👣 MOVERSE.';
 }
 
 function PipBar({ value, max, icon: Icon, label }) {
@@ -581,6 +685,91 @@ function applyNodeEffect(node, state) {
   return { state: s, logs };
 }
 
+function HelpModal({ onClose }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.92, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.92, y: 20 }}
+        className="max-w-2xl w-full rounded-2xl border border-amber-700 bg-stone-950 text-amber-50 shadow-2xl"
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-amber-900/70 p-5">
+          <div>
+            <h2 className="text-2xl font-black text-amber-300">¿Cómo jugar?</h2>
+            <p className="mt-1 text-sm text-amber-100/70">
+              Guía rápida para sobrevivir a Ubricalipsis.
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-full bg-stone-900 p-2 hover:bg-stone-800"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-5 p-5 text-sm leading-relaxed">
+          <div>
+            <h3 className="font-black text-amber-300">Objetivo</h3>
+            <p>
+              Llega hasta <b>La Frontera</b> antes de quedarte sin salud.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-black text-amber-300">Tu turno</h3>
+            <ol className="list-decimal space-y-1 pl-5">
+              <li>Elige una ruta amarilla en el mapa.</li>
+              <li>
+                Juega una carta <b>👣 MOVERSE</b> para avanzar.
+              </li>
+              <li>
+                Si no tienes carta de MOVERSE, juega una carta de acción para
+                prepararte.
+              </li>
+              <li>
+                Pulsa <b>Terminar turno</b> para resolver eventos y robar nuevas
+                cartas.
+              </li>
+            </ol>
+          </div>
+
+          <div>
+            <h3 className="font-black text-amber-300">Cartas</h3>
+
+            <div className="grid sm:grid-cols-2 gap-2">
+              {Object.values(ACTION_META).map(m => (
+                <div
+                  key={m.label}
+                  className="rounded-xl border border-amber-900/60 bg-stone-900/80 p-3"
+                >
+                  <b>
+                    {m.icon} {m.label}
+                  </b>
+                  <br />
+                  <span className="text-amber-100/75">{m.help}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-red-800/70 bg-red-950/40 p-3">
+            <b>⚡ Zonas abiertas:</b> al terminar turno se resuelven 2 eventos.
+            Además, <b>OCULTARSE</b> no funciona allí.
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function BranchMap({ current, chosenNext, onChoose }) {
   const currentOptions = MAP[current].options;
   const visitedLayer = MAP[current].y;
@@ -623,10 +812,10 @@ function BranchMap({ current, chosenNext, onChoose }) {
                 active
                   ? '#facc15'
                   : available
-                  ? '#f59e0b'
-                  : passed
-                  ? '#a16207'
-                  : '#57534e'
+                    ? '#f59e0b'
+                    : passed
+                      ? '#a16207'
+                      : '#57534e'
               }
               strokeWidth={active ? 1.1 : available ? 0.75 : 0.45}
               strokeDasharray={active ? '2 1' : available ? '1.5 1.5' : '0'}
@@ -705,9 +894,7 @@ function DeckSummary() {
   return (
     <Card className="bg-stone-950/70 border border-amber-900 rounded-2xl">
       <CardContent className="p-4">
-        <h2 className="text-xl font-bold text-amber-300 mb-3">
-          Equilibrio beta
-        </h2>
+        <h2 className="text-xl font-bold text-amber-300 mb-3">Equilibrio beta</h2>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
           <div className="rounded-xl bg-stone-900/80 p-2 border border-amber-900/50">
@@ -739,8 +926,7 @@ function DeckSummary() {
 
         <p className="mt-3 text-xs text-amber-100/70">
           Ajuste aplicado: partida media, dificultad media, menos cartas de
-          movimiento, munición más escasa, curación más contenida y Ocultarse
-          inútil en Zona abierta.
+          movimiento, munición más escasa, curación contenida y ayuda contextual.
         </p>
       </CardContent>
     </Card>
@@ -750,13 +936,14 @@ function DeckSummary() {
 export default function Ubricalipsis() {
   const [player, setPlayer] = useState('');
   const [started, setStarted] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
-  const [game, setGame] = useState({
+  const initialGame = {
     health: 10,
     ammo: 3,
     current: 'ayuntamiento',
     chosenNext: 'trinidad',
-    hand: drawHand(),
+    hand: drawHand(0, true),
     actionsLeft: 2,
     turn: 1,
     poison: 0,
@@ -764,15 +951,20 @@ export default function Ubricalipsis() {
     extraDraw: 0,
     doubleEvent: false,
     status: 'playing',
-  });
+    needsActionAfterMove: false,
+  };
+
+  const [game, setGame] = useState(initialGame);
 
   const [log, setLog] = useState([
     'Ubrique tiembla. La bolsa subterránea ha explotado. Toca correr hacia la frontera.',
+    '👣 Empiezas con una carta de MOVERSE para que puedas avanzar desde el primer turno.',
   ]);
 
   const [lastEvent, setLastEvent] = useState(null);
 
   const options = MAP[game.current].options;
+  const tip = getCurrentTip(game);
 
   function addLog(lines) {
     setLog(l => [...lines, ...l].slice(0, 10));
@@ -780,15 +972,25 @@ export default function Ubricalipsis() {
 
   function chooseNext(id) {
     setGame(g => ({ ...g, chosenNext: id }));
+    addLog([`🧭 Ruta seleccionada: ${MAP[id].name}. Ahora juega una carta 👣 MOVERSE.`]);
   }
 
   function playCard(card) {
-    if (game.status !== 'playing' || game.actionsLeft <= 0) return;
+    if (game.status !== 'playing') {
+      addLog(['ℹ️ La partida ha terminado. Pulsa Reiniciar para jugar de nuevo.']);
+      return;
+    }
+
+    if (game.actionsLeft <= 0) {
+      addLog(['⏳ No te quedan acciones. Pulsa Terminar turno para robar nuevas cartas.']);
+      return;
+    }
 
     let g = {
       ...game,
       hand: game.hand.filter(c => c.uid !== card.uid),
       actionsLeft: game.actionsLeft - 1,
+      needsActionAfterMove: false,
     };
 
     const lines = [];
@@ -796,7 +998,10 @@ export default function Ubricalipsis() {
     if (card.type === 'move') {
       const destination = g.chosenNext || options[0];
 
-      if (!destination) return;
+      if (!destination) {
+        addLog(['🧭 No tienes ruta disponible. Revisa el mapa.']);
+        return;
+      }
 
       g.current = destination;
       g.chosenNext = MAP[destination].options[0] || null;
@@ -811,12 +1016,25 @@ export default function Ubricalipsis() {
         const applied = applyNodeEffect(MAP[destination], g);
         g = applied.state;
         lines.push(...applied.logs);
+
+        if (g.chosenNext) {
+          lines.push(`🧭 Próxima ruta sugerida: ${MAP[g.chosenNext].name}. Puedes cambiarla en el mapa.`);
+        }
+
+        const hasMoveAfterMoving = g.hand.some(c => c.type === 'move');
+
+        if (!hasMoveAfterMoving) {
+          g.needsActionAfterMove = true;
+          lines.push(
+            '⚠️ No te quedan cartas de MOVERSE. Juega una carta de acción para prepararte: BUSCAR, CURAR, ATACAR u OCULTARSE.'
+          );
+        }
       }
     }
 
     if (card.type === 'attack') {
       if (g.ammo < 2) {
-        addLog(['🔫 No tienes munición suficiente para atacar.']);
+        addLog(['🔫 No tienes munición suficiente para atacar. Usa BUSCAR o visita un Taller.']);
         return;
       }
 
@@ -846,6 +1064,10 @@ export default function Ubricalipsis() {
       lines.push(`🍺 ${card.name}: ${card.effectText} +1 salud.`);
     }
 
+    if (card.type !== 'move') {
+      g.needsActionAfterMove = false;
+    }
+
     if (g.health <= 0) {
       g.status = 'lost';
     }
@@ -857,7 +1079,6 @@ export default function Ubricalipsis() {
   function resolveEvents(base) {
     let g = { ...base };
     const lines = [];
-
     const count = g.doubleEvent ? 2 : 1;
 
     for (let i = 0; i < count; i++) {
@@ -874,14 +1095,13 @@ export default function Ubricalipsis() {
     }
 
     g.doubleEvent = false;
-
     return { g, lines };
   }
 
   function endTurn() {
     if (game.status !== 'playing') return;
 
-    let g = { ...game };
+    let g = { ...game, needsActionAfterMove: false };
     const lines = [];
 
     if (g.poison > 0) {
@@ -901,7 +1121,7 @@ export default function Ubricalipsis() {
 
     g.turn += 1;
     g.actionsLeft = 2;
-    g.hand = drawHand(g.extraDraw || 0);
+    g.hand = drawHand(g.extraDraw || 0, false);
     g.extraDraw = 0;
 
     setGame(g);
@@ -909,42 +1129,32 @@ export default function Ubricalipsis() {
   }
 
   function reset() {
-    setGame({
-      health: 10,
-      ammo: 3,
-      current: 'ayuntamiento',
-      chosenNext: 'trinidad',
-      hand: drawHand(),
-      actionsLeft: 2,
-      turn: 1,
-      poison: 0,
-      skipNextDanger: false,
-      extraDraw: 0,
-      doubleEvent: false,
-      status: 'playing',
-    });
+    const newGame = {
+      ...initialGame,
+      hand: drawHand(0, true),
+    };
 
+    setGame(newGame);
     setLastEvent(null);
-    setLog(['Nueva partida beta. Menos munición, menos curación y menos margen para correr.']);
+    setLog([
+      'Nueva partida beta. Empiezas con una carta de MOVERSE para arrancar la huida.',
+      '👣 Elige una ruta en el mapa y juega la carta de MOVERSE.',
+    ]);
   }
 
-if (!started) {
-  return (
-    <div
-      className="relative min-h-screen p-6 text-amber-50 flex items-center justify-center overflow-hidden"
-      style={{
-        backgroundImage: `linear-gradient(rgba(10, 8, 6, 0.58), rgba(10, 8, 6, 0.82)), url('${import.meta.env.BASE_URL}fondo-inicio.png')`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }}
-    >
-<Card className="relative z-10 max-w-xl w-full bg-stone-950/75 border border-amber-700/80 shadow-2xl rounded-2xl backdrop-blur-md">
-  <CardContent className="p-8 space-y-5">
+  if (!started) {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,#6b4a24,#1c160f_65%)] p-6 text-amber-50 flex items-center justify-center">
+        <AnimatePresence>
+          {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+        </AnimatePresence>
+
+        <Card className="max-w-xl w-full bg-stone-950/80 border border-amber-900 shadow-2xl rounded-2xl">
+          <CardContent className="p-8 space-y-5">
             <div>
-             <h1 className="text-5xl md:text-6xl font-black tracking-tight text-amber-300 drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)]">
-  UBRICALIPSIS
-</h1>
+              <h1 className="text-5xl font-black tracking-tight text-amber-300">
+                UBRICALIPSIS
+              </h1>
 
               <p className="mt-3 text-amber-100/80">
                 Una explosión bajo Ubrique ha convertido a medio pueblo en zombies
@@ -959,12 +1169,22 @@ if (!started) {
               className="w-full rounded-xl bg-stone-900 border border-amber-800 p-3 outline-none focus:ring-2 focus:ring-amber-500"
             />
 
-            <Button
-              onClick={() => setStarted(true)}
-              className="w-full rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold"
-            >
-              Empezar huida
-            </Button>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Button
+                onClick={() => setStarted(true)}
+                className="rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold"
+              >
+                Empezar huida
+              </Button>
+
+              <Button
+                onClick={() => setShowHelp(true)}
+                className="rounded-xl bg-stone-800 hover:bg-stone-700 border border-amber-800 text-amber-100"
+              >
+                <HelpCircle className="h-4 w-4 inline mr-2" />
+                Cómo jugar
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -973,6 +1193,10 @@ if (!started) {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#76552d,#1a130d_60%)] text-amber-50 p-4 md:p-6">
+      <AnimatePresence>
+        {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      </AnimatePresence>
+
       <div className="max-w-7xl mx-auto space-y-4">
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-3">
           <div>
@@ -986,14 +1210,23 @@ if (!started) {
             </p>
           </div>
 
-          <Button
-            onClick={reset}
-            variant="outline"
-            className="rounded-xl border border-amber-700 text-amber-100 bg-stone-950/40 hover:bg-stone-900"
-          >
-            <RotateCcw className="h-4 w-4 mr-2 inline" />
-            Reiniciar
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setShowHelp(true)}
+              className="rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black"
+            >
+              <HelpCircle className="h-4 w-4 mr-2 inline" />
+              Cómo jugar
+            </Button>
+
+            <Button
+              onClick={reset}
+              className="rounded-xl border border-amber-700 text-amber-100 bg-stone-950/40 hover:bg-stone-900"
+            >
+              <RotateCcw className="h-4 w-4 mr-2 inline" />
+              Reiniciar
+            </Button>
+          </div>
         </header>
 
         <div className="grid xl:grid-cols-[1.05fr_.95fr] gap-4">
@@ -1003,6 +1236,16 @@ if (!started) {
                 <div className="grid md:grid-cols-2 gap-4">
                   <PipBar value={game.health} max={MAX_HEALTH} icon={Heart} label="Salud" />
                   <PipBar value={game.ammo} max={MAX_AMMO} icon={Crosshair} label="Munición" />
+                </div>
+
+                <div
+                  className={`rounded-2xl border p-3 text-sm ${
+                    game.needsActionAfterMove
+                      ? 'border-yellow-400 bg-yellow-950/50 text-yellow-50'
+                      : 'border-amber-700/70 bg-amber-950/40 text-amber-50'
+                  }`}
+                >
+                  <b className="text-amber-300">💡 Consejo actual:</b> {tip}
                 </div>
 
                 {game.status !== 'playing' && (
@@ -1026,7 +1269,9 @@ if (!started) {
             <Card className="bg-stone-950/70 border border-amber-900 rounded-2xl">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-xl font-bold text-amber-300">Mano de cartas</h2>
+                  <h2 className="text-xl font-bold text-amber-300">
+                    Mano de cartas
+                  </h2>
 
                   <Button
                     onClick={endTurn}
@@ -1040,27 +1285,76 @@ if (!started) {
                   <AnimatePresence>
                     {game.hand.map((card, idx) => {
                       const Icon = ACTION_ICONS[card.type];
+                      const meta = ACTION_META[card.type];
+
+                      const shouldHighlightMove =
+                        card.type === 'move' &&
+                        !!game.chosenNext &&
+                        game.status === 'playing';
+
+                      const shouldHighlightAction =
+                        game.needsActionAfterMove &&
+                        card.type !== 'move' &&
+                        game.status === 'playing';
 
                       return (
                         <motion.div
                           key={card.uid}
                           initial={{ y: -80, opacity: 0, rotate: -8 }}
-                          animate={{ y: 0, opacity: 1, rotate: 0 }}
+                          animate={{
+                            y: 0,
+                            opacity: 1,
+                            rotate: 0,
+                            boxShadow:
+                              shouldHighlightMove || shouldHighlightAction
+                                ? [
+                                    '0 0 0 rgba(250,204,21,0)',
+                                    '0 0 26px rgba(250,204,21,.75)',
+                                    '0 0 0 rgba(250,204,21,0)',
+                                  ]
+                                : '0 12px 24px rgba(0,0,0,.35)',
+                          }}
                           exit={{ y: -140, opacity: 0, rotate: 14 }}
-                          transition={{ delay: idx * 0.08 }}
+                          transition={{
+                            delay: idx * 0.08,
+                            boxShadow: {
+                              repeat:
+                                shouldHighlightMove || shouldHighlightAction
+                                  ? Infinity
+                                  : 0,
+                              duration: 1.3,
+                            },
+                          }}
                           whileHover={{ y: -10, rotateX: 8 }}
                           onClick={() => playCard(card)}
-                          className="cursor-pointer rounded-2xl bg-gradient-to-br from-amber-200 to-stone-300 text-stone-950 border-4 border-stone-800 shadow-xl p-4 min-h-52 flex flex-col"
+                          className={`relative cursor-pointer rounded-2xl bg-gradient-to-br from-amber-200 to-stone-300 text-stone-950 border-4 shadow-xl p-4 min-h-52 flex flex-col ${
+                            shouldHighlightMove || shouldHighlightAction
+                              ? 'border-yellow-400 ring-4 ring-yellow-300/60'
+                              : 'border-stone-800'
+                          }`}
                         >
+                          {shouldHighlightMove && (
+                            <div className="absolute -top-3 left-3 rounded-full bg-yellow-300 px-3 py-1 text-[11px] font-black text-stone-950 shadow">
+                              ÚSALA PARA AVANZAR
+                            </div>
+                          )}
+
+                          {shouldHighlightAction && (
+                            <div className="absolute -top-3 left-3 rounded-full bg-yellow-300 px-3 py-1 text-[11px] font-black text-stone-950 shadow">
+                              JUEGA UNA ACCIÓN
+                            </div>
+                          )}
+
                           <div className="flex justify-between items-start">
                             <h3 className="font-black text-lg leading-tight">
                               {card.name}
                             </h3>
+
                             <Icon className="h-6 w-6 shrink-0" />
                           </div>
 
-                          <p className="text-xs font-bold mt-1 uppercase">
-                            {card.type} · Coste: {card.cost}
+                          <p className="text-xs font-black mt-1 uppercase">
+                            {meta.icon} {meta.label} · Coste: {card.cost}
                           </p>
 
                           <p className="mt-4 text-sm leading-relaxed">
