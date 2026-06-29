@@ -1,231 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Heart,
-  Crosshair,
-  MapPin,
-  Skull,
-  Beer,
-  Wrench,
-  Home,
-  Siren,
-  Shield,
-  Footprints,
-  Search,
-  RotateCcw,
-  Flag,
-  Backpack,
-  Zap,
-  HelpCircle,
-  X,
-} from 'lucide-react';
-
-function Button({ children, className = '', ...props }) {
-  return (
-    <button
-      className={`px-4 py-2 rounded-xl font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Card({ children, className = '', ...props }) {
-  return (
-    <div className={className} {...props}>
-      {children}
-    </div>
-  );
-}
-
-function CardContent({ children, className = '', ...props }) {
-  return (
-    <div className={className} {...props}>
-      {children}
-    </div>
-  );
-}
-
-const MAX_HEALTH = 10;
-const MAX_AMMO = 5;
-
-const ACTION_ICONS = {
-  move: Footprints,
-  attack: Crosshair,
-  search: Search,
-  hide: Shield,
-  heal: Beer,
-};
-
-const ACTION_META = {
-  move: {
-    label: 'MOVERSE',
-    icon: '👣',
-    help: 'Avanza al nodo elegido en el mapa.',
-  },
-  attack: {
-    label: 'ATACAR',
-    icon: '🔫',
-    help: 'Gasta 2 munición y evita el próximo peligro.',
-  },
-  search: {
-    label: 'BUSCAR',
-    icon: '🥜',
-    help: 'Gana 1 munición.',
-  },
-  hide: {
-    label: 'OCULTARSE',
-    icon: '🛡️',
-    help: 'Evita el próximo peligro, salvo en Zona abierta.',
-  },
-  heal: {
-    label: 'CURAR',
-    icon: '🍺',
-    help: 'Recupera 1 salud.',
-  },
-};
-
-const ACTION_DECK = [
-  {
-    id: 'move_01',
-    type: 'move',
-    name: 'Atajo de toda la vida',
-    cost: 'Gratis',
-    text: 'Recuerdas el camino de memoria — total, llevas 40 años andando lo mismo. Avanza al siguiente punto elegido.',
-    effectText: 'Avanzas siguiendo el camino que ya tenías en la cabeza.',
-  },
-  {
-    id: 'move_02',
-    type: 'move',
-    name: 'Carrera cuesta abajo',
-    cost: 'Gratis',
-    text: 'Aprovechas la pendiente y sales disparado antes de pensártelo demasiado. Avanza al siguiente punto elegido.',
-    effectText: 'Bajas como una bala entre escombros y persianas dobladas.',
-  },
-  {
-    id: 'move_03',
-    type: 'move',
-    name: 'Por donde antes iba tó el mundo',
-    cost: 'Gratis',
-    text: 'El pueblo está hecho polvo, pero tú sabes por dónde se acorta. Avanza al siguiente punto elegido.',
-    effectText: 'Encuentras un paso entre coches volcados y macetas rotas.',
-  },
-
-  {
-    id: 'attack_01',
-    type: 'attack',
-    name: 'Patacabra ofensiva',
-    cost: '-2 munición',
-    text: 'Le lanzas una patacabra al Político zombie que muere al no saber usarla. Gasta 2 munición, evita el próximo evento negativo.',
-    effectText: 'La patacabra hace su trabajo. El próximo peligro queda neutralizado.',
-  },
-  {
-    id: 'attack_02',
-    type: 'attack',
-    name: 'Taconazo de emergencia',
-    cost: '-2 munición',
-    text: 'Improvisas un proyectil con un tacón de muestra. Gasta 2 munición, evita el próximo evento negativo.',
-    effectText: 'El tacón impacta con dignidad industrial.',
-  },
-  {
-    id: 'attack_03',
-    type: 'attack',
-    name: 'Chatarra bien tirá',
-    cost: '-2 munición',
-    text: 'Coges un trozo de persiana y lo lanzas como si llevaras entrenando años. Gasta 2 munición, evita el próximo evento negativo.',
-    effectText: 'La amenaza se queda replanteándose sus decisiones.',
-  },
-  {
-    id: 'attack_04',
-    type: 'attack',
-    name: 'Disparo al aire',
-    cost: '-2 munición',
-    text: 'No le das a nada, pero el ruido espanta hasta al más pesado. Gasta 2 munición, evita el próximo evento negativo.',
-    effectText: 'El eco recorre Ubrique y ganas unos segundos vitales.',
-  },
-
-  {
-    id: 'search_01',
-    type: 'search',
-    name: 'Bar de toda la vida',
-    cost: 'Gratis',
-    text: 'Registras el bar de toda la vida. Quedan unas pipas. Gana 1 munición.',
-    effectText: 'Encuentras munición escondida detrás de una caja de pipas.',
-  },
-  {
-    id: 'search_02',
-    type: 'search',
-    name: 'Cajón sospechoso',
-    cost: 'Gratis',
-    text: 'Abres un cajón que nadie se había atrevido a tocar desde 1998. Gana 1 munición.',
-    effectText: 'Aparece algo útil entre papeles amarillentos.',
-  },
-  {
-    id: 'search_03',
-    type: 'search',
-    name: 'Bolsa del mandao',
-    cost: 'Gratis',
-    text: 'Una bolsa abandonada contiene más supervivencia que la mochila de un explorador. Gana 1 munición.',
-    effectText: 'No preguntas de quién era. Te viene de lujo.',
-  },
-  {
-    id: 'search_04',
-    type: 'search',
-    name: 'Debajo del mostrador',
-    cost: 'Gratis',
-    text: 'Miras debajo del mostrador y encuentras justo lo que no esperabas. Gana 1 munición.',
-    effectText: 'Otro cartucho para seguir dando guerra.',
-  },
-
-  {
-    id: 'hide_01',
-    type: 'hide',
-    name: 'Portal de confianza',
-    cost: 'Gratis',
-    text: 'Te metes en el portal de siempre. Ignora el próximo peligro, salvo si estás en Zona abierta.',
-    effectText: 'El silencio del portal te cubre durante unos minutos.',
-  },
-  {
-    id: 'hide_02',
-    type: 'hide',
-    name: 'Persiana a medio bajar',
-    cost: 'Gratis',
-    text: 'Te cuelas bajo una persiana oxidada. Ignora el próximo peligro, salvo si estás en Zona abierta.',
-    effectText: 'Los zombies pasan de largo arrastrando los pies.',
-  },
-  {
-    id: 'hide_03',
-    type: 'hide',
-    name: 'Tras una furgoneta quemada',
-    cost: 'Gratis',
-    text: 'La furgoneta huele fatal, pero es mejor que discutir con un zombie. Ignora el próximo peligro, salvo si estás en Zona abierta.',
-    effectText: 'La peste te salva. Nadie se acerca.',
-  },
-  {
-    id: 'hide_04',
-    type: 'hide',
-    name: 'Silencio de siesta',
-    cost: 'Gratis',
-    text: 'Te quedas tan quieto que pareces parte del mobiliario urbano. Ignora el próximo peligro, salvo si estás en Zona abierta.',
-    effectText: 'Ni los zombies se atreven a romper la siesta.',
-  },
-
-  {
-    id: 'heal_01',
-    type: 'heal',
-    name: 'Tercio fresquito',
-    cost: 'Gratis',
-    text: 'Encuentras un tercio de cerveza fresquita. Recupera 1 de salud.',
-    effectText: 'El tercio entra como medicina ancestral.',
-  },
-  {
-    id: 'heal_02',
-    type: 'heal',
-    name: 'Puchero milagroso',
-    cost: 'Gratis',
-    text: 'Una cucharada de puchero templado te devuelve la fe. Recupera 1 de salud.',
-    effectText: 'No estaba caliente, pero te recompone el alma.',
+import { motion, pero te recompone el alma.',import { motion, AnimatePresence } from 'framer-motion';
   },
   {
     id: 'heal_03',
@@ -270,7 +44,6 @@ const EVENT_DECK = [
     text: 'Un corrillo zombie bloquea la calle escuchando un mitin eterno. Pierdes 1 acción.',
     apply: s => ({ ...s, actionsLeft: Math.max(0, s.actionsLeft - 1) }),
   },
-
   {
     id: 'ev_conocido_01',
     name: 'Zombie Conocido',
@@ -295,7 +68,6 @@ const EVENT_DECK = [
     text: 'Te intenta poner al día de toda su familia zombie. Pierdes 2 de salud.',
     apply: s => ({ ...s, health: Math.max(0, s.health - 2) }),
   },
-
   {
     id: 'ev_empresario_01',
     name: 'Zombie Empresario',
@@ -328,7 +100,6 @@ const EVENT_DECK = [
     text: 'Un Empresario zombie convoca una reunión de seguimiento. Pierdes 1 acción.',
     apply: s => ({ ...s, actionsLeft: Math.max(0, s.actionsLeft - 1) }),
   },
-
   {
     id: 'ev_guiso_01',
     name: 'Olor a guiso',
@@ -357,7 +128,6 @@ const EVENT_DECK = [
       ammo: Math.min(MAX_AMMO, s.ammo + 1),
     }),
   },
-
   {
     id: 'ev_calle_01',
     name: 'Calle cortada',
@@ -382,7 +152,6 @@ const EVENT_DECK = [
     text: 'No avanzan, pero tampoco dejan pasar. Pierdes 1 acción.',
     apply: s => ({ ...s, actionsLeft: Math.max(0, s.actionsLeft - 1) }),
   },
-
   {
     id: 'ev_zona_01',
     name: 'Eco subterráneo',
@@ -540,10 +309,10 @@ const typeColors = {
   Salida: 'bg-green-800 text-green-50 border-green-400',
 };
 
-function uid(i) {
+function makeId(prefix = 'id') {
   return crypto.randomUUID
     ? crypto.randomUUID()
-    : `${Date.now()}-${i}-${Math.random()}`;
+    : `${prefix}-${Date.now()}-${Math.random()}`;
 }
 
 function randomFrom(deck) {
@@ -556,7 +325,7 @@ function drawHand(extra = 0, ensureMove = false) {
   if (!ensureMove) {
     return Array.from({ length: count }, (_, i) => ({
       ...randomFrom(ACTION_DECK),
-      uid: uid(i),
+      uid: makeId(`card-${i}`),
     }));
   }
 
@@ -566,14 +335,14 @@ function drawHand(extra = 0, ensureMove = false) {
   const hand = [
     {
       ...randomFrom(moveCards),
-      uid: uid('initial-move'),
+      uid: makeId('initial-move'),
     },
   ];
 
   while (hand.length < count) {
     hand.push({
       ...randomFrom(nonMoveCards),
-      uid: uid(hand.length),
+      uid: makeId(`card-${hand.length}`),
     });
   }
 
@@ -582,6 +351,32 @@ function drawHand(extra = 0, ensureMove = false) {
 
 function randomEvent() {
   return randomFrom(EVENT_DECK);
+}
+
+function createLogEntry(text, fresh = false) {
+  return {
+    id: makeId('log'),
+    text,
+    fresh,
+  };
+}
+
+function createInitialGame() {
+  return {
+    health: 10,
+    ammo: 3,
+    current: 'ayuntamiento',
+    chosenNext: 'trinidad',
+    hand: drawHand(0, true),
+    actionsLeft: 2,
+    turn: 1,
+    poison: 0,
+    skipNextDanger: false,
+    extraDraw: 0,
+    doubleEvent: false,
+    status: 'playing',
+    needsActionAfterMove: false,
+  };
 }
 
 function getCurrentTip(game) {
@@ -883,6 +678,60 @@ function BranchMap({ current, chosenNext, onChoose }) {
   );
 }
 
+function GameLog({ log }) {
+  return (
+    <Card className="bg-stone-950/80 border border-amber-700 rounded-2xl shadow-xl">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xl font-bold text-amber-300">Registro</h2>
+          <span className="text-xs text-amber-100/50">
+            Últimos acontecimientos
+          </span>
+        </div>
+
+        <div className="space-y-2 max-h-[220px] overflow-auto pr-1">
+          <AnimatePresence initial={false}>
+            {log.map(entry => (
+              <motion.div
+                key={entry.id}
+                initial={{ x: 24, opacity: 0, scale: 0.98 }}
+                animate={{
+                  x: 0,
+                  opacity: 1,
+                  scale: 1,
+                  backgroundColor: entry.fresh
+                    ? 'rgba(250, 204, 21, 0.22)'
+                    : 'rgba(28, 25, 23, 0.82)',
+                  borderColor: entry.fresh
+                    ? 'rgba(250, 204, 21, 0.95)'
+                    : 'rgba(120, 53, 15, 0.50)',
+                  boxShadow: entry.fresh
+                    ? [
+                        '0 0 0 rgba(250,204,21,0)',
+                        '0 0 22px rgba(250,204,21,0.55)',
+                        '0 0 0 rgba(250,204,21,0)',
+                      ]
+                    : '0 0 0 rgba(0,0,0,0)',
+                }}
+                exit={{ x: -20, opacity: 0 }}
+                transition={{
+                  duration: 0.35,
+                  boxShadow: {
+                    duration: 1.2,
+                  },
+                }}
+                className="rounded-xl border p-2 text-sm text-amber-50"
+              >
+                {entry.text}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function DeckSummary() {
   const actionCounts = ACTION_DECK.reduce(
     (acc, c) => ({ ...acc, [c.type]: (acc[c.type] || 0) + 1 }),
@@ -937,37 +786,34 @@ export default function Ubricalipsis() {
   const [player, setPlayer] = useState('');
   const [started, setStarted] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-
-  const initialGame = {
-    health: 10,
-    ammo: 3,
-    current: 'ayuntamiento',
-    chosenNext: 'trinidad',
-    hand: drawHand(0, true),
-    actionsLeft: 2,
-    turn: 1,
-    poison: 0,
-    skipNextDanger: false,
-    extraDraw: 0,
-    doubleEvent: false,
-    status: 'playing',
-    needsActionAfterMove: false,
-  };
-
-  const [game, setGame] = useState(initialGame);
+  const [game, setGame] = useState(createInitialGame());
+  const [lastEvent, setLastEvent] = useState(null);
 
   const [log, setLog] = useState([
-    'Ubrique tiembla. La bolsa subterránea ha explotado. Toca correr hacia la frontera.',
-    '👣 Empiezas con una carta de MOVERSE para que puedas avanzar desde el primer turno.',
+    createLogEntry(
+      'Ubrique tiembla. La bolsa subterránea ha explotado. Toca correr hacia la frontera.',
+      false
+    ),
+    createLogEntry(
+      '👣 Empiezas con una carta de MOVERSE para que puedas avanzar desde el primer turno.',
+      false
+    ),
   ]);
-
-  const [lastEvent, setLastEvent] = useState(null);
 
   const options = MAP[game.current].options;
   const tip = getCurrentTip(game);
 
   function addLog(lines) {
-    setLog(l => [...lines, ...l].slice(0, 10));
+    const newEntries = lines.map(line => createLogEntry(line, true));
+
+    setLog(currentLog => {
+      const oldEntries = currentLog.map(entry => ({
+        ...entry,
+        fresh: false,
+      }));
+
+      return [...newEntries, ...oldEntries].slice(0, 10);
+    });
   }
 
   function chooseNext(id) {
@@ -1129,34 +975,49 @@ export default function Ubricalipsis() {
   }
 
   function reset() {
-    const newGame = {
-      ...initialGame,
-      hand: drawHand(0, true),
-    };
-
-    setGame(newGame);
+    setGame(createInitialGame());
     setLastEvent(null);
     setLog([
-      'Nueva partida beta. Empiezas con una carta de MOVERSE para arrancar la huida.',
-      '👣 Elige una ruta en el mapa y juega la carta de MOVERSE.',
+      createLogEntry(
+        'Nueva partida beta. Empiezas con una carta de MOVERSE para arrancar la huida.',
+        true
+      ),
+      createLogEntry(
+        '👣 Elige una ruta en el mapa y juega la carta de MOVERSE.',
+        true
+      ),
     ]);
   }
 
   if (!started) {
     return (
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top,#6b4a24,#1c160f_65%)] p-6 text-amber-50 flex items-center justify-center">
+      <div
+        className="relative min-h-screen p-6 text-amber-50 flex items-center justify-center overflow-hidden"
+        style={{
+          backgroundImage: `linear-gradient(rgba(10, 8, 6, 0.50), rgba(10, 8, 6, 0.82)), url('${import.meta.env.BASE_URL}fondo-inicio.png')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.10),rgba(0,0,0,0.68))]" />
+
         <AnimatePresence>
           {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
         </AnimatePresence>
 
-        <Card className="max-w-xl w-full bg-stone-950/80 border border-amber-900 shadow-2xl rounded-2xl">
+        <Card className="relative z-10 max-w-xl w-full bg-stone-950/75 border border-amber-700/80 shadow-2xl rounded-2xl backdrop-blur-md">
           <CardContent className="p-8 space-y-5">
             <div>
-              <h1 className="text-5xl font-black tracking-tight text-amber-300">
+              <p className="mb-2 text-xs uppercase tracking-[0.35em] text-amber-200/80">
+                Supervivencia en Ubrique
+              </p>
+
+              <h1 className="text-5xl md:text-6xl font-black tracking-tight text-amber-300 drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)]">
                 UBRICALIPSIS
               </h1>
 
-              <p className="mt-3 text-amber-100/80">
+              <p className="mt-4 text-amber-100/90 leading-relaxed">
                 Una explosión bajo Ubrique ha convertido a medio pueblo en zombies
                 que chupan vitalidad. Tu misión: llegar a La Frontera.
               </p>
@@ -1166,20 +1027,20 @@ export default function Ubricalipsis() {
               value={player}
               onChange={e => setPlayer(e.target.value)}
               placeholder="Nombre del superviviente"
-              className="w-full rounded-xl bg-stone-900 border border-amber-800 p-3 outline-none focus:ring-2 focus:ring-amber-500"
+              className="w-full rounded-xl bg-stone-950/80 border border-amber-700 p-3 outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-amber-100/40"
             />
 
             <div className="grid sm:grid-cols-2 gap-3">
               <Button
                 onClick={() => setStarted(true)}
-                className="rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold"
+                className="rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black shadow-lg shadow-black/40"
               >
                 Empezar huida
               </Button>
 
               <Button
                 onClick={() => setShowHelp(true)}
-                className="rounded-xl bg-stone-800 hover:bg-stone-700 border border-amber-800 text-amber-100"
+                className="rounded-xl bg-stone-950/80 hover:bg-stone-900 border border-amber-700 text-amber-100"
               >
                 <HelpCircle className="h-4 w-4 inline mr-2" />
                 Cómo jugar
@@ -1228,6 +1089,8 @@ export default function Ubricalipsis() {
             </Button>
           </div>
         </header>
+
+        <GameLog log={log} />
 
         <div className="grid xl:grid-cols-[1.05fr_.95fr] gap-4">
           <section className="space-y-4">
@@ -1388,56 +1251,41 @@ export default function Ubricalipsis() {
           </section>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-4">
-          <Card className="bg-stone-950/70 border border-amber-900 rounded-2xl">
-            <CardContent className="p-4">
-              <h2 className="text-xl font-bold text-amber-300 mb-3">
-                Último evento
-              </h2>
+       <Card className="bg-stone-950/70 border border-amber-900 rounded-2xl">
+          <CardContent className="p-4">
+            <h2 className="text-xl font-bold text-amber-300 mb-3">
+              Último evento
+            </h2>
 
-              <AnimatePresence mode="wait">
-                {lastEvent ? (
-                  <motion.div
-                    key={lastEvent.id + game.turn}
-                    initial={{ rotateY: 90, opacity: 0 }}
-                    animate={{ rotateY: 0, opacity: 1 }}
-                    exit={{ rotateY: -90, opacity: 0 }}
-                    className="rounded-2xl bg-red-950/60 border border-red-800 p-4"
-                  >
-                    <div className="font-black text-lg">{lastEvent.name}</div>
-                    <div className="text-xs text-red-200/70">{lastEvent.type}</div>
-                    <p className="mt-3 text-sm">{lastEvent.text}</p>
-                  </motion.div>
-                ) : (
-                  <p className="text-amber-100/60">
-                    Aún no ha aparecido ningún evento.
+            <AnimatePresence mode="wait">
+              {lastEvent ? (
+                <motion.div
+                  key={lastEvent.id + game.turn}
+                  initial={{ rotateY: 90, opacity: 0 }}
+                  animate={{ rotateY: 0, opacity: 1 }}
+                  exit={{ rotateY: -90, opacity: 0 }}
+                  className="rounded-2xl bg-red-950/60 border border-red-800 p-4"
+                >
+                  <div className="font-black text-lg">
+                    {lastEvent.name}
+                  </div>
+
+                  <div className="text-xs text-red-200/70">
+                    {lastEvent.type}
+                  </div>
+
+                  <p className="mt-3 text-sm">
+                    {lastEvent.text}
                   </p>
-                )}
-              </AnimatePresence>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-stone-950/70 border border-amber-900 rounded-2xl">
-            <CardContent className="p-4">
-              <h2 className="text-xl font-bold text-amber-300 mb-3">Registro</h2>
-
-              <div className="space-y-2 max-h-[260px] overflow-auto pr-1">
-                <AnimatePresence>
-                  {log.map((line, i) => (
-                    <motion.div
-                      key={line + i}
-                      initial={{ x: 20, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      className="rounded-xl bg-stone-900/80 border border-amber-900/50 p-2 text-sm"
-                    >
-                      {line}
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                </motion.div>
+              ) : (
+                <p className="text-amber-100/60">
+                  Aún no ha aparecido ningún evento.
+                </p>
+              )}
+            </AnimatePresence>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
