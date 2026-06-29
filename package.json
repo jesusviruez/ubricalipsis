@@ -1,0 +1,8 @@
+{
+  "name": "ubricalipsis",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "build": "echo 'no build'"
+  }
+}
