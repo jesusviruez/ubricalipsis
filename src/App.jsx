@@ -928,15 +928,23 @@ export default function Ubricalipsis() {
     setLog(['Nueva partida beta. Menos munición, menos curación y menos margen para correr.']);
   }
 
-  if (!started) {
-    return (
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top,#6b4a24,#1c160f_65%)] p-6 text-amber-50 flex items-center justify-center">
-        <Card className="max-w-xl w-full bg-stone-950/80 border border-amber-900 shadow-2xl rounded-2xl">
-          <CardContent className="p-8 space-y-5">
+if (!started) {
+  return (
+    <div
+      className="relative min-h-screen p-6 text-amber-50 flex items-center justify-center overflow-hidden"
+      style={{
+        backgroundImage: `linear-gradient(rgba(10, 8, 6, 0.58), rgba(10, 8, 6, 0.82)), url('${import.meta.env.BASE_URL}fondo-inicio.png')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+<Card className="relative z-10 max-w-xl w-full bg-stone-950/75 border border-amber-700/80 shadow-2xl rounded-2xl backdrop-blur-md">
+  <CardContent className="p-8 space-y-5">
             <div>
-              <h1 className="text-5xl font-black tracking-tight text-amber-300">
-                UBRICALIPSIS
-              </h1>
+             <h1 className="text-5xl md:text-6xl font-black tracking-tight text-amber-300 drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)]">
+  UBRICALIPSIS
+</h1>
 
               <p className="mt-3 text-amber-100/80">
                 Una explosión bajo Ubrique ha convertido a medio pueblo en zombies
