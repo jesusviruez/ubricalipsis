@@ -108,10 +108,10 @@ const typeIcons = { Inicio: MapPin, 'Zona abierta': Siren, Taller: Wrench, Refug
 const typeColors = { Inicio: 'bg-amber-500 text-stone-950 border-amber-200', 'Zona abierta': 'bg-red-950 text-red-100 border-red-700', Taller: 'bg-orange-900 text-orange-100 border-orange-600', Refugio: 'bg-emerald-950 text-emerald-100 border-emerald-700', Barricada: 'bg-stone-800 text-stone-100 border-stone-500', Clínica: 'bg-sky-950 text-sky-100 border-sky-700', Salida: 'bg-green-800 text-green-50 border-green-400' };
 
 const NODE_TYPE_INFO = {
-  'Zona abierta': { tone: 'mixed', summary: 'Sin cobertura. Te ven desde todas partes.', detail: 'Se resolverán 2 eventos en vez de 1. OCULTARSE no sirve aquí. Además, 50% de probabilidad de +1 salud o -1 salud al llegar.' },
+  'Zona abierta': { tone: 'mixed', summary: 'Sin cobertura. Te ven desde todas partes.', detail: 'Solo puedes entrar si tienes al menos 5 de salud. Se resolverán 2 eventos en vez de 1. OCULTARSE no sirve aquí. Además, 50% de probabilidad de +1 salud o -1 salud al llegar.' },
   Taller: { tone: 'mixed', summary: 'Restos de ferretería o garaje. Hay piezas sueltas.', detail: 'Ganas +1 munición seguro al llegar. Además, 50% de probabilidad de +1 salud o -1 salud (a veces te cortas con la chatarra).' },
   Refugio: { tone: 'good', summary: 'Un sitio para parar y reorganizarte un momento.', detail: 'Robarás 1 carta extra en tu próximo turno.' },
-  Barricada: { tone: 'bad', summary: 'El paso está obstruido con escombros o muebles.', detail: 'Pierdes 1 acción y 1 salud este turno al abrirte camino.' },
+  Barricada: { tone: 'bad', summary: 'El paso está obstruido con escombros o muebles.', detail: 'Solo puedes entrar si tienes al menos 3 de munición. Pierdes 1 acción y 1 salud este turno al abrirte camino.' },
   Clínica: { tone: 'good', summary: 'Botiquín, ambulatorio o farmacia saqueada.', detail: 'Recuperas +1 salud automáticamente al llegar.' },
   Salida: { tone: 'good', summary: 'El final del camino. La libertad, si llegas con vida.', detail: 'Llegar aquí significa que has escapado de Ubricalipsis.' },
   Inicio: { tone: 'neutral', summary: 'Plaza del Ayuntamiento. Donde empieza todo.', detail: 'Tu punto de partida.' },
@@ -393,6 +393,18 @@ function getCurrentTip(game) {
   if (game.chosenNext && !hasMove) return '⏳ Ya tienes ruta elegida, pero no tienes MOVERSE. Terminar turno te dará MOVERSE en máximo 2 robos.';
   return '👉 Elige uno de los caminos amarillos y juega una carta MOVERSE.';
 }
+
+function getNodeAccessRestriction(node, game) {
+  if (!node || !game) return null;
+  if (node.type === 'Barricada' && game.ammo < 3) {
+    return `🚧 No puedes ir a ${node.name}: necesitas al menos 3 de munición para atravesar una Barricada. Munición actual: ${game.ammo}/3.`;
+  }
+  if (node.type === 'Zona abierta' && game.health < 5) {
+    return `⚡ No puedes ir a ${node.name}: necesitas al menos 5 de salud para cruzar una Zona abierta. Salud actual: ${game.health}/5.`;
+  }
+  return null;
+}
+
 function PipBar({ value, max, icon: Icon, label }) {
   return <div className="space-y-1"><div className="flex items-center gap-2 text-sm font-semibold text-amber-100"><Icon className="h-4 w-4" />{label}: {value}/{max}</div><div className="flex gap-1 flex-wrap">{Array.from({ length: max }).map((_, i) => <motion.span key={i} animate={{ scale: i < value ? [1, 1.25, 1] : 1 }} className={`h-3 w-5 rounded-sm border border-amber-900/70 ${i < value ? 'bg-amber-400' : 'bg-stone-900/70'}`} />)}</div></div>;
 }
@@ -423,7 +435,7 @@ function applyNodeEffect(node, state) {
 }
 
 function HelpModal({ onClose }) {
-  return <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"><motion.div initial={{ scale: .92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: .92, y: 20 }} className="max-w-2xl w-full max-h-[90vh] overflow-auto rounded-2xl border border-amber-700 bg-stone-950 text-amber-50 shadow-2xl"><div className="sticky top-0 flex justify-between gap-3 border-b border-amber-900/70 bg-stone-950 p-5"><div><h2 className="text-2xl font-black text-amber-300">¿Cómo jugar?</h2><p className="mt-1 text-sm text-amber-100/70">Guía rápida para sobrevivir a Ubricalipsis.</p></div><button onClick={onClose} className="rounded-full bg-stone-900 p-2 hover:bg-stone-800"><X className="h-5 w-5" /></button></div><div className="space-y-5 p-5 text-sm leading-relaxed"><div><h3 className="font-black text-amber-300">Objetivo</h3><p>Llega hasta <b>La Frontera</b> antes de quedarte sin salud.</p></div><div><h3 className="font-black text-amber-300">Reglas nuevas</h3><ol className="list-decimal space-y-1 pl-5"><li>Terminar turno cuesta <b>1 salud</b>.</li><li>Cada movimiento lanza una reacción: buena, mala o pregunta.</li><li>Cada carta de acción también lanza reacción buena o mala.</li><li>Si una reacción de acción es mala, puedes gastar otra carta de acción para cancelarla.</li><li>Si no tienes MOVERSE, el juego te garantiza una carta de MOVERSE en máximo 2 robos.</li></ol></div><div><h3 className="font-black text-amber-300">Cartas</h3><div className="grid sm:grid-cols-2 gap-2">{Object.values(ACTION_META).map(m => <div key={m.label} className="rounded-xl border border-amber-900/60 bg-stone-900/80 p-3"><b>{m.icon} {m.label}</b><br /><span className="text-amber-100/75">{m.help}</span></div>)}</div></div></div></motion.div></motion.div>;
+  return <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"><motion.div initial={{ scale: .92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: .92, y: 20 }} className="max-w-2xl w-full max-h-[90vh] overflow-auto rounded-2xl border border-amber-700 bg-stone-950 text-amber-50 shadow-2xl"><div className="sticky top-0 flex justify-between gap-3 border-b border-amber-900/70 bg-stone-950 p-5"><div><h2 className="text-2xl font-black text-amber-300">¿Cómo jugar?</h2><p className="mt-1 text-sm text-amber-100/70">Guía rápida para sobrevivir a Ubricalipsis.</p></div><button onClick={onClose} className="rounded-full bg-stone-900 p-2 hover:bg-stone-800"><X className="h-5 w-5" /></button></div><div className="space-y-5 p-5 text-sm leading-relaxed"><div><h3 className="font-black text-amber-300">Objetivo</h3><p>Llega hasta <b>La Frontera</b> antes de quedarte sin salud.</p></div><div><h3 className="font-black text-amber-300">Reglas nuevas</h3><ol className="list-decimal space-y-1 pl-5"><li>Terminar turno cuesta <b>1 salud</b>.</li><li>No puedes ir a una <b>Barricada</b> si tienes menos de <b>3 munición</b>.</li><li>No puedes ir a una <b>Zona abierta</b> si tienes menos de <b>5 salud</b>.</li><li>Cada movimiento lanza una reacción: buena, mala o pregunta.</li><li>Cada carta de acción también lanza reacción buena o mala.</li><li>Si una reacción de acción es mala, puedes gastar otra carta de acción para cancelarla.</li><li>Si no tienes MOVERSE, el juego te garantiza una carta de MOVERSE en máximo 2 robos.</li></ol></div><div><h3 className="font-black text-amber-300">Cartas</h3><div className="grid sm:grid-cols-2 gap-2">{Object.values(ACTION_META).map(m => <div key={m.label} className="rounded-xl border border-amber-900/60 bg-stone-900/80 p-3"><b>{m.icon} {m.label}</b><br /><span className="text-amber-100/75">{m.help}</span></div>)}</div></div></div></motion.div></motion.div>;
 }
 function MovementReactionModal({ reaction, onApply, onAnswer }) {
   const isQuestion = reaction.kind === 'question';
@@ -545,7 +557,7 @@ export default function Ubricalipsis() {
   const tip = getCurrentTip(game);
   const addLog = lines => setLog(current => [...lines.map(t => createLogEntry(t, true)), ...current.map(e => ({ ...e, fresh: false }))].slice(0, 12));
 
-  function chooseNext(id) { if (pendingMoveReaction || pendingActionReaction) return; setGame(g => ({ ...g, chosenNext: id })); addLog([`🧭 Ruta seleccionada: ${MAP[id].name}.`]); }
+  function chooseNext(id) { if (pendingMoveReaction || pendingActionReaction) return; const restriction = getNodeAccessRestriction(MAP[id], game); if (restriction) { addLog([restriction]); return; } setGame(g => ({ ...g, chosenNext: id })); addLog([`🧭 Ruta seleccionada: ${MAP[id].name}.`]); }
   function applyMoveReaction(reaction, answer = null) {
     const lines = [];
     if (reaction.kind === 'question') {
@@ -562,6 +574,11 @@ export default function Ubricalipsis() {
     if (pendingMoveReaction || pendingActionReaction) { addLog(['⏸️ Resuelve primero la reacción pendiente.']); return; }
     if (game.status !== 'playing') { addLog(['ℹ️ La partida ha terminado. Pulsa Reiniciar.']); return; }
     if (game.actionsLeft <= 0) { addLog(['⏳ No te quedan acciones. Termina turno para robar.']); return; }
+    if (card.type === 'move') {
+      const destination = game.chosenNext || options[0];
+      const restriction = getNodeAccessRestriction(MAP[destination], game);
+      if (restriction) { addLog([restriction]); return; }
+    }
     let g = { ...game, hand: game.hand.filter(c => c.uid !== card.uid), actionsLeft: game.actionsLeft - 1, needsActionAfterMove: false };
     const lines = [];
     if (card.type === 'move') {
