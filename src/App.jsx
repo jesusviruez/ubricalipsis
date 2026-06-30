@@ -108,11 +108,11 @@ const typeIcons = { Inicio: MapPin, 'Zona abierta': Siren, Taller: Wrench, Refug
 const typeColors = { Inicio: 'bg-amber-500 text-stone-950 border-amber-200', 'Zona abierta': 'bg-red-950 text-red-100 border-red-700', Taller: 'bg-orange-900 text-orange-100 border-orange-600', Refugio: 'bg-emerald-950 text-emerald-100 border-emerald-700', Barricada: 'bg-stone-800 text-stone-100 border-stone-500', Clínica: 'bg-sky-950 text-sky-100 border-sky-700', Salida: 'bg-green-800 text-green-50 border-green-400' };
 
 const NODE_TYPE_INFO = {
-  'Zona abierta': { tone: 'bad', summary: 'Sin cobertura. Te ven desde todas partes.', detail: 'Al llegar se resolverán 2 eventos en vez de 1. OCULTARSE no sirve de nada aquí: no hay dónde meterse.' },
-  Taller: { tone: 'good', summary: 'Restos de ferretería o garaje. Hay piezas sueltas.', detail: 'Ganas +1 munición automáticamente al llegar.' },
+  'Zona abierta': { tone: 'mixed', summary: 'Sin cobertura. Te ven desde todas partes.', detail: 'Se resolverán 2 eventos en vez de 1. OCULTARSE no sirve aquí. Además, 50% de probabilidad de +1 salud o -1 salud al llegar.' },
+  Taller: { tone: 'mixed', summary: 'Restos de ferretería o garaje. Hay piezas sueltas.', detail: 'Ganas +1 munición seguro al llegar. Además, 50% de probabilidad de +1 salud o -1 salud (a veces te cortas con la chatarra).' },
   Refugio: { tone: 'good', summary: 'Un sitio para parar y reorganizarte un momento.', detail: 'Robarás 1 carta extra en tu próximo turno.' },
-  Barricada: { tone: 'bad', summary: 'El paso está obstruido con escombros o muebles.', detail: 'Pierdes 1 acción este turno al abrirte camino.' },
-  Clínica: { tone: 'good', summary: 'Botiquín, ambulatorio o farmacia saqueada.', detail: 'Recuperas +2 salud automáticamente al llegar.' },
+  Barricada: { tone: 'bad', summary: 'El paso está obstruido con escombros o muebles.', detail: 'Pierdes 1 acción y 1 salud este turno al abrirte camino.' },
+  Clínica: { tone: 'good', summary: 'Botiquín, ambulatorio o farmacia saqueada.', detail: 'Recuperas +1 salud automáticamente al llegar.' },
   Salida: { tone: 'good', summary: 'El final del camino. La libertad, si llegas con vida.', detail: 'Llegar aquí significa que has escapado de Ubricalipsis.' },
   Inicio: { tone: 'neutral', summary: 'Plaza del Ayuntamiento. Donde empieza todo.', detail: 'Tu punto de partida.' },
 };
@@ -142,6 +142,194 @@ function SurvivorIcon({ size = 28, className = '' }) {
       <circle cx="21" cy="12.5" r="0.9" fill="#1c140a" />
       <circle cx="27" cy="12.5" r="0.9" fill="#1c140a" />
     </svg>
+  );
+}
+
+/* Fondo común tipo viñeta de cómic sepia para todas las ilustraciones de evento */
+function ComicFrame({ children, tint = '#3a2818' }) {
+  return (
+    <svg viewBox="0 0 200 140" className="h-full w-full" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="vig" cx="50%" cy="42%" r="75%">
+          <stop offset="0%" stopColor={tint} stopOpacity="0" />
+          <stop offset="100%" stopColor="#0c0805" stopOpacity=".85" />
+        </radialGradient>
+        <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n" /><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .05 0" /></filter>
+      </defs>
+      <rect width="200" height="140" fill="#241a0f" />
+      {children}
+      <rect width="200" height="140" fill="url(#vig)" />
+      <rect width="200" height="140" filter="url(#grain)" opacity=".5" />
+    </svg>
+  );
+}
+
+const ZOMBIE_SKIN = '#7d8c5c';
+const ZOMBIE_SKIN_D = '#566140';
+
+function EventArt({ id }) {
+  switch (id) {
+    case 'ev_01': // Zombie Político: traje, folleto, sonrisa de cartón
+      return <ComicFrame tint="#4a2a1a"><g>
+        <rect x="60" y="60" width="80" height="80" fill="#2c2418" />
+        <path d="M78 138 Q78 95 100 90 Q122 95 122 138 Z" fill="#243042" stroke="#10161f" strokeWidth="2" />
+        <rect x="93" y="92" width="14" height="20" fill="#9c1f1f" />
+        <circle cx="100" cy="62" r="20" fill={ZOMBIE_SKIN} stroke={ZOMBIE_SKIN_D} strokeWidth="2" />
+        <path d="M82 56 Q100 44 118 56" stroke="#2a2a1a" strokeWidth="4" fill="none" />
+        <circle cx="93" cy="60" r="2.4" fill="#1a1a10" /><circle cx="107" cy="60" r="2.4" fill="#1a1a10" />
+        <path d="M88 72 Q100 80 112 72" stroke="#1a1a10" strokeWidth="2.5" fill="none" />
+        <rect x="118" y="100" width="34" height="22" rx="2" fill="#d8c9a0" stroke="#7a5c34" strokeWidth="1.5" transform="rotate(18 135 111)" />
+        <text x="120" y="113" fontSize="7" fill="#7a2020" fontFamily="Georgia, serif" transform="rotate(18 135 111)">VOTA★YA</text>
+        <path d="M60 132 h80" stroke="#0c0805" strokeWidth="4" />
+      </g></ComicFrame>;
+
+    case 'ev_02': // Promesa electoral zombie: micro y confeti de papeles caídos
+      return <ComicFrame tint="#4a2a1a"><g>
+        <circle cx="100" cy="58" r="19" fill={ZOMBIE_SKIN} stroke={ZOMBIE_SKIN_D} strokeWidth="2" />
+        <path d="M83 50 Q100 38 117 50" stroke="#2a2a1a" strokeWidth="4" fill="none" />
+        <circle cx="93" cy="56" r="2.2" fill="#1a1a10" /><circle cx="107" cy="56" r="2.2" fill="#1a1a10" />
+        <path d="M89 68 Q100 75 111 68" stroke="#1a1a10" strokeWidth="2.2" fill="none" />
+        <rect x="86" y="78" width="28" height="50" fill="#33405a" stroke="#10161f" strokeWidth="2" />
+        <rect x="96" y="60" width="8" height="22" rx="3" fill="#1a1a1a" />
+        <circle cx="100" cy="58" r="6" fill="#3a3a3a" />
+        {[...Array(6)].map((_, i) => <rect key={i} x={20 + i * 28} y={20 + (i % 2) * 10} width="10" height="6" fill="#caa874" opacity=".7" transform={`rotate(${i * 23} ${25 + i * 28} ${24}) `} />)}
+      </g></ComicFrame>;
+
+    case 'ev_03': // Mitin improvisado: corrillo de gente bloqueando calle
+      return <ComicFrame tint="#3a3018"><g>
+        {[40, 75, 110, 145].map((x, i) => (
+          <g key={i}>
+            <circle cx={x} cy={70 - (i % 2) * 6} r="13" fill={i % 2 ? ZOMBIE_SKIN : '#caa874'} stroke="#3a2a18" strokeWidth="1.5" />
+            <rect x={x - 11} y={82 - (i % 2) * 6} width="22" height="38" rx="6" fill={['#5a4a30', '#3c4a3a', '#4a3a2a', '#2e3a4a'][i]} stroke="#1c150c" strokeWidth="1.5" />
+          </g>
+        ))}
+        <rect x="10" y="125" width="180" height="6" fill="#0c0805" />
+      </g></ComicFrame>;
+
+    case 'ev_04': // Zombie Conocido: vecino con bata, mano en el hombro, charla infinita
+      return <ComicFrame tint="#3a2818"><g>
+        <circle cx="78" cy="65" r="18" fill={ZOMBIE_SKIN} stroke={ZOMBIE_SKIN_D} strokeWidth="2" />
+        <path d="M62 58 Q78 47 94 58" stroke="#241c10" strokeWidth="4" fill="none" />
+        <circle cx="72" cy="63" r="2.2" fill="#1a1a10" /><circle cx="84" cy="63" r="2.2" fill="#1a1a10" />
+        <path d="M68 75 Q78 81 88 75" stroke="#1a1a10" strokeWidth="2.2" fill="none" />
+        <rect x="62" y="80" width="32" height="48" fill="#9c8050" stroke="#5a4426" strokeWidth="2" />
+        <circle cx="130" cy="60" r="16" fill="#caa874" stroke="#7a5c34" strokeWidth="1.5" />
+        <rect x="116" y="74" width="28" height="50" fill="#3c4a3a" stroke="#1c2a1c" strokeWidth="1.5" />
+        <path d="M94 95 Q108 85 118 90" stroke={ZOMBIE_SKIN_D} strokeWidth="5" strokeLinecap="round" fill="none" />
+        <g fontFamily="Georgia, serif" fontSize="10" fill="#e8d5a3" opacity=".9">
+          <text x="20" y="35">"...y entonces</text>
+          <text x="20" y="48">le dije que...”</text>
+        </g>
+      </g></ComicFrame>;
+
+    case 'ev_05': // Zombie Empresario: traje, corbata torcida, carpetas cayendo
+      return <ComicFrame tint="#3a2818"><g>
+        <rect x="74" y="80" width="52" height="50" fill="#1c2230" stroke="#0a0e16" strokeWidth="2" />
+        <path d="M92 80 L100 95 L108 80 Z" fill="#8a1f1f" />
+        <circle cx="100" cy="60" r="20" fill={ZOMBIE_SKIN} stroke={ZOMBIE_SKIN_D} strokeWidth="2" />
+        <path d="M82 54 Q100 42 118 54" stroke="#1a1a10" strokeWidth="4" fill="none" />
+        <circle cx="93" cy="58" r="2.4" fill="#1a1a10" /><circle cx="107" cy="58" r="2.4" fill="#1a1a10" />
+        <path d="M88 70 Q100 64 112 70" stroke="#1a1a10" strokeWidth="2.4" fill="none" />
+        <g transform="rotate(-12 50 110)"><rect x="34" y="98" width="32" height="24" fill="#caa874" stroke="#7a5c34" strokeWidth="1.5" /><line x1="38" y1="106" x2="62" y2="106" stroke="#7a5c34" strokeWidth="1" /><line x1="38" y1="112" x2="62" y2="112" stroke="#7a5c34" strokeWidth="1" /></g>
+        <g transform="rotate(10 150 112)"><rect x="134" y="100" width="32" height="24" fill="#d8c9a0" stroke="#7a5c34" strokeWidth="1.5" /><line x1="138" y1="108" x2="162" y2="108" stroke="#7a5c34" strokeWidth="1" /></g>
+        <text x="70" y="138" fontSize="8" fill="#caa874" fontFamily="Georgia, serif" opacity=".85">CONTRATO EN FORMACIÓN</text>
+      </g></ComicFrame>;
+
+    case 'ev_06': // Olor a guiso: puchero humeante, ventana iluminada
+      return <ComicFrame tint="#5a3a18"><g>
+        <rect x="60" y="20" width="80" height="60" fill="#3a2a18" stroke="#1c140a" strokeWidth="2" />
+        <rect x="68" y="28" width="64" height="44" fill="#caa050" opacity=".5" />
+        <ellipse cx="100" cy="115" rx="36" ry="14" fill="#2c2014" />
+        <ellipse cx="100" cy="108" rx="32" ry="10" fill="#1c150c" />
+        <path d="M75 100 Q70 80 80 70" stroke="#d8c9a0" strokeWidth="4" fill="none" opacity=".6" strokeLinecap="round" />
+        <path d="M100 96 Q93 76 103 64" stroke="#d8c9a0" strokeWidth="4" fill="none" opacity=".6" strokeLinecap="round" />
+        <path d="M125 100 Q132 80 122 70" stroke="#d8c9a0" strokeWidth="4" fill="none" opacity=".6" strokeLinecap="round" />
+      </g></ComicFrame>;
+
+    case 'ev_07': // Tupper salvador: tupper abierto con cuchara
+      return <ComicFrame tint="#4a3018"><g>
+        <ellipse cx="100" cy="90" rx="46" ry="28" fill="#7a8c9a" stroke="#3a4650" strokeWidth="2" />
+        <ellipse cx="100" cy="84" rx="40" ry="22" fill="#caa050" />
+        <ellipse cx="92" cy="78" rx="10" ry="6" fill="#8a5a30" />
+        <ellipse cx="112" cy="88" rx="8" ry="5" fill="#6a8a40" />
+        <rect x="128" y="55" width="6" height="40" rx="3" fill="#d8c9a0" transform="rotate(20 131 75)" />
+        <ellipse cx="140" cy="58" rx="8" ry="11" fill="#d8c9a0" transform="rotate(20 140 58)" />
+      </g></ComicFrame>;
+
+    case 'ev_08': // Botellín intacto: botella entre escombros
+      return <ComicFrame tint="#3a2818"><g>
+        <rect x="20" y="100" width="160" height="30" fill="#2c2014" />
+        {[30, 60, 130, 160].map((x, i) => <rect key={i} x={x} y={92 + (i % 2) * 6} width="18" height="14" fill="#4a3a28" transform={`rotate(${i * 14 - 14} ${x + 9} ${99})`} />)}
+        <rect x="92" y="55" width="16" height="50" rx="3" fill="#3a5c3a" stroke="#1c2a1c" strokeWidth="1.5" />
+        <rect x="96" y="45" width="8" height="14" fill="#caa050" />
+        <rect x="94" y="68" width="12" height="16" fill="#e8d5a3" opacity=".85" />
+      </g></ComicFrame>;
+
+    case 'ev_09': // Calle cortada: sillas de bar amontonadas
+      return <ComicFrame tint="#3a2818"><g>
+        {[50, 90, 130].map((x, i) => (
+          <g key={i} transform={`rotate(${(i - 1) * 10} ${x} 90)`}>
+            <rect x={x - 14} y="60" width="4" height="50" fill="#5a4426" />
+            <rect x={x + 10} y="60" width="4" height="50" fill="#5a4426" />
+            <rect x={x - 16} y="60" width="32" height="6" fill="#7a5c34" />
+            <rect x={x - 16} y="84" width="32" height="6" fill="#7a5c34" />
+          </g>
+        ))}
+        <rect x="10" y="120" width="180" height="8" fill="#0c0805" />
+      </g></ComicFrame>;
+
+    case 'ev_10': // Bolsa de gas menor: nube tóxica entre grietas
+      return <ComicFrame tint="#3a4a2a"><g>
+        <path d="M70 130 L100 70 L130 130 Z" fill="#241a10" />
+        <path d="M85 130 L100 90 L115 130 Z" fill="#0c0805" />
+        <ellipse cx="100" cy="62" rx="28" ry="16" fill="#6a8a4a" opacity=".55" />
+        <ellipse cx="80" cy="50" rx="20" ry="12" fill="#5a7a3a" opacity=".5" />
+        <ellipse cx="122" cy="52" rx="18" ry="11" fill="#5a7a3a" opacity=".45" />
+      </g></ComicFrame>;
+
+    case 'ev_11': // Silencio raro: calle vacía, una sola farola encendida
+      return <ComicFrame tint="#241c30"><g>
+        <rect x="96" y="30" width="6" height="90" fill="#1c150c" />
+        <circle cx="99" cy="28" r="12" fill="#e8c878" opacity=".9" />
+        <circle cx="99" cy="28" r="22" fill="#e8c878" opacity=".25" />
+        <rect x="10" y="120" width="180" height="10" fill="#0c0805" />
+        <path d="M0 60 Q100 40 200 60" stroke="#2a2030" strokeWidth="2" fill="none" opacity=".4" />
+      </g></ComicFrame>;
+
+    case 'ev_12': // Chispa de suerte: cargador de munición brillando
+      return <ComicFrame tint="#4a3a18"><g>
+        <rect x="84" y="60" width="32" height="56" rx="4" fill="#5a5040" stroke="#2a2418" strokeWidth="2" />
+        <rect x="90" y="50" width="20" height="14" fill="#caa050" />
+        {[0, 1, 2].map(i => <rect key={i} x="90" y={70 + i * 14} width="20" height="10" rx="2" fill="#d8a838" />)}
+        <path d="M100 30 L104 44 L118 44 L107 53 L111 67 L100 58 L89 67 L93 53 L82 44 L96 44 Z" fill="#f4d878" opacity=".9" />
+      </g></ComicFrame>;
+
+    default:
+      return <ComicFrame><Skull className="opacity-50" /></ComicFrame>;
+  }
+}
+
+function EventPopup({ event, turnKey, onDone }) {
+  React.useEffect(() => {
+    if (!event) return;
+    const t = setTimeout(() => onDone && onDone(), 3200);
+    return () => clearTimeout(t);
+  }, [event, turnKey]);
+  if (!event) return null;
+  const isBad = event.negative;
+  return (
+    <motion.div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.div initial={{ scale: .8, y: 24, rotate: -2 }} animate={{ scale: 1, y: 0, rotate: 0 }} exit={{ scale: .85, opacity: 0 }} transition={{ type: 'spring', stiffness: 240, damping: 20 }} className={`w-full max-w-sm overflow-hidden rounded-3xl border-2 shadow-2xl ${isBad ? 'border-red-600' : 'border-emerald-600'}`}>
+        <div className="aspect-[10/7] w-full"><EventArt id={event.id} /></div>
+        <div className={`p-4 ${isBad ? 'bg-red-950/95' : 'bg-emerald-950/95'}`}>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="font-black text-lg text-amber-50">{event.name}</h3>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${isBad ? 'bg-red-900 text-red-100' : 'bg-emerald-900 text-emerald-100'}`}>{event.type}</span>
+          </div>
+          <p className="mt-1.5 text-sm text-amber-100/90">{event.text}</p>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -210,11 +398,27 @@ function PipBar({ value, max, icon: Icon, label }) {
 }
 function applyNodeEffect(node, state) {
   let s = { ...state }; const logs = [];
-  if (node.type === 'Taller') { s.ammo = Math.min(MAX_AMMO, s.ammo + 1); logs.push(`🔧 ${node.name}: +1 munición.`); }
-  if (node.type === 'Clínica') { s.health = Math.min(MAX_HEALTH, s.health + 2); logs.push(`🏥 ${node.name}: +2 salud.`); }
+  if (node.type === 'Taller') {
+    s.ammo = Math.min(MAX_AMMO, s.ammo + 1);
+    logs.push(`🔧 ${node.name}: +1 munición.`);
+    const roll = Math.random() < 0.5;
+    if (roll) { s.health = Math.min(MAX_HEALTH, s.health + 1); logs.push(`🎲 Suerte en el taller: +1 salud.`); }
+    else { s.health = Math.max(0, s.health - 1); logs.push(`🎲 Te cortas con chatarra oxidada: -1 salud.`); }
+  }
+  if (node.type === 'Clínica') { s.health = Math.min(MAX_HEALTH, s.health + 1); logs.push(`🏥 ${node.name}: +1 salud.`); }
   if (node.type === 'Refugio') { s.extraDraw = 1; logs.push(`🏚️ ${node.name}: robarás 1 carta extra.`); }
-  if (node.type === 'Barricada') { s.actionsLeft = Math.max(0, s.actionsLeft - 1); logs.push(`🚧 ${node.name}: pierdes 1 acción este turno.`); }
-  if (node.type === 'Zona abierta') { s.doubleEvent = true; logs.push(`⚡ ${node.name}: se resolverán 2 eventos.`); }
+  if (node.type === 'Barricada') {
+    s.actionsLeft = Math.max(0, s.actionsLeft - 1);
+    s.health = Math.max(0, s.health - 1);
+    logs.push(`🚧 ${node.name}: pierdes 1 acción y 1 salud al abrirte camino.`);
+  }
+  if (node.type === 'Zona abierta') {
+    s.doubleEvent = true;
+    logs.push(`⚡ ${node.name}: se resolverán 2 eventos.`);
+    const roll = Math.random() < 0.5;
+    if (roll) { s.health = Math.min(MAX_HEALTH, s.health + 1); logs.push(`🎲 Cruzas sin que te vean: +1 salud.`); }
+    else { s.health = Math.max(0, s.health - 1); logs.push(`🎲 Te exponen a la vista de todos: -1 salud.`); }
+  }
   return { state: s, logs };
 }
 
@@ -276,7 +480,9 @@ function RouteInfoPanel({ nodeId }) {
     ? 'border-red-700/70 bg-red-950/40'
     : info.tone === 'good'
       ? 'border-emerald-700/60 bg-emerald-950/30'
-      : 'border-amber-700/60 bg-amber-950/30';
+      : info.tone === 'mixed'
+        ? 'border-orange-600/70 bg-orange-950/30 border-dashed'
+        : 'border-amber-700/60 bg-amber-950/30';
   return (
     <AnimatePresence mode="wait">
       <motion.div key={nodeId} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: .22 }} className={`mt-2 rounded-2xl border p-3 ${toneStyles}`}>
@@ -332,6 +538,8 @@ export default function Ubricalipsis() {
   const [pendingMoveReaction, setPendingMoveReaction] = useState(null);
   const [pendingActionReaction, setPendingActionReaction] = useState(null);
   const [lastEvent, setLastEvent] = useState(null);
+  const [popupEvent, setPopupEvent] = useState(null);
+  const popupKeyRef = React.useRef(0);
   const [log, setLog] = useState([createLogEntry('Ubrique tiembla. Toca correr hacia la frontera.', false), createLogEntry('👣 Empiezas con una carta de MOVERSE.', false)]);
   const options = MAP[game.current].options;
   const tip = getCurrentTip(game);
@@ -373,7 +581,7 @@ export default function Ubricalipsis() {
     setGame(g); addLog(lines);
   }
 
-  function resolveEvents(base) { let g = { ...base }; const lines = []; const count = g.doubleEvent ? 2 : 1; for (let i = 0; i < count; i++) { const ev = randomEvent(); setLastEvent(ev); if (ev.negative && g.skipNextDanger) { lines.push(`🙈 Evitas ${ev.name}.`); g.skipNextDanger = false; } else { g = ev.apply(g); lines.push(`🃏 ${ev.name}: ${ev.text}`); } } g.doubleEvent = false; return { g, lines }; }
+  function resolveEvents(base) { let g = { ...base }; const lines = []; const count = g.doubleEvent ? 2 : 1; for (let i = 0; i < count; i++) { const ev = randomEvent(); setLastEvent(ev); popupKeyRef.current += 1; setPopupEvent({ ...ev, _key: popupKeyRef.current }); if (ev.negative && g.skipNextDanger) { lines.push(`🙈 Evitas ${ev.name}.`); g.skipNextDanger = false; } else { g = ev.apply(g); lines.push(`🃏 ${ev.name}: ${ev.text}`); } } g.doubleEvent = false; return { g, lines }; }
   function endTurn() {
     if (pendingMoveReaction || pendingActionReaction) { addLog(['⏸️ Resuelve primero la reacción pendiente.']); return; }
     if (game.status !== 'playing') return;
@@ -390,13 +598,14 @@ export default function Ubricalipsis() {
     else if (hadNoMoveBeforeDraw && !newHandHasMove) lines.push('👣 Sigues sin MOVERSE. Si vuelves a robar sin movimiento, recibirás una garantizada.');
     g.turn += 1; g.actionsLeft = 2; g.extraDraw = 0; setGame(g); addLog(lines);
   }
-  function reset() { setGame(createInitialGame()); setPendingMoveReaction(null); setPendingActionReaction(null); setLastEvent(null); setLog([createLogEntry('Nueva partida. Empiezas con MOVERSE.', true), createLogEntry('🩸 Terminar turno cuesta 1 salud.', true), createLogEntry('🎲 Movimientos y acciones tienen reacción.', true)]); }
+  function reset() { setGame(createInitialGame()); setPendingMoveReaction(null); setPendingActionReaction(null); setLastEvent(null); setPopupEvent(null); setLog([createLogEntry('Nueva partida. Empiezas con MOVERSE.', true), createLogEntry('🩸 Terminar turno cuesta 1 salud.', true), createLogEntry('🎲 Movimientos y acciones tienen reacción.', true)]); }
 
   if (!started) return <div className="relative min-h-screen p-4 text-amber-50 flex items-center justify-center overflow-hidden sm:p-6" style={{ backgroundImage: `linear-gradient(rgba(10, 8, 6, 0.50), rgba(10, 8, 6, 0.82)), url('${import.meta.env.BASE_URL}fondo-inicio.png')`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}><div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.10),rgba(0,0,0,0.68))]" /><AnimatePresence>{showHelp && <HelpModal onClose={() => setShowHelp(false)} />}</AnimatePresence><Card className="relative z-10 max-w-xl w-full bg-stone-950/75 border border-amber-700/80 shadow-2xl rounded-2xl backdrop-blur-md"><CardContent className="p-5 space-y-5 sm:p-8"><div><p className="mb-2 text-xs uppercase tracking-[0.25em] text-amber-200/80 sm:tracking-[0.35em]">Supervivencia en Ubrique</p><h1 className="text-4xl font-black tracking-tight text-amber-300 drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] sm:text-6xl">UBRICALIPSIS</h1><p className="mt-4 text-sm text-amber-100/90 leading-relaxed sm:text-base">Una explosión bajo Ubrique ha convertido a medio pueblo en zombies que chupan vitalidad. Tu misión: llegar a La Frontera.</p></div><input value={player} onChange={e => setPlayer(e.target.value)} placeholder="Nombre del superviviente" className="w-full rounded-xl bg-stone-950/80 border border-amber-700 p-3 outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-amber-100/40" /><div className="grid gap-3 sm:grid-cols-2"><Button onClick={() => setStarted(true)} className="rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black shadow-lg shadow-black/40">Empezar huida</Button><Button onClick={() => setShowHelp(true)} className="rounded-xl bg-stone-950/80 hover:bg-stone-900 border border-amber-700 text-amber-100"><HelpCircle className="h-4 w-4 inline mr-2" />Cómo jugar</Button></div></CardContent></Card></div>;
   return <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#76552d,#1a130d_60%)] text-amber-50 p-3 sm:p-4 md:p-6">
     <AnimatePresence>{showHelp && <HelpModal onClose={() => setShowHelp(false)} />}</AnimatePresence>
     <AnimatePresence>{pendingMoveReaction && <MovementReactionModal reaction={pendingMoveReaction} onApply={() => applyMoveReaction(pendingMoveReaction)} onAnswer={answer => applyMoveReaction(pendingMoveReaction, answer)} />}</AnimatePresence>
     <AnimatePresence>{pendingActionReaction && <ActionReactionModal reaction={pendingActionReaction} mitigationCards={game.hand.filter(c => c.type !== 'move')} onApply={() => applyActionReaction(pendingActionReaction)} onMitigate={card => mitigateActionReaction(card)} />}</AnimatePresence>
+    <AnimatePresence>{popupEvent && <EventPopup key={popupEvent._key} event={popupEvent} turnKey={popupEvent._key} onDone={() => setPopupEvent(null)} />}</AnimatePresence>
 
     <div className="mx-auto max-w-7xl space-y-3">
       <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -410,8 +619,23 @@ export default function Ubricalipsis() {
         </div>
       </header>
 
-      {/* Registro colapsado: barra fina con el último evento */}
-      <GameLog log={log} />
+      {/* Registro y Último evento: misma línea, 50% cada uno */}
+      <div className="grid gap-3 md:grid-cols-2">
+        <GameLog log={log} />
+        <Card className="bg-stone-950/80 border border-amber-700/70 rounded-2xl shadow-xl overflow-hidden">
+          <CardContent className="px-4 py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">Último evento</span>
+              <AnimatePresence mode="wait">
+                {lastEvent ? <motion.div key={lastEvent.id + game.turn} initial={{ opacity: 0, x: 6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -6 }} className="flex min-w-0 flex-1 items-center justify-end gap-2 text-right">
+                  <span className="truncate text-sm font-bold text-amber-50">{lastEvent.name}</span>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${lastEvent.negative ? 'bg-red-950/80 text-red-200' : 'bg-emerald-950/80 text-emerald-200'}`}>{lastEvent.type}</span>
+                </motion.div> : <span className="truncate text-sm text-amber-100/50">Aún no ha aparecido ningún evento.</span>}
+              </AnimatePresence>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Tablero con HUD de salud/munición integrado + panel de ruta seleccionada */}
       <Card className="bg-stone-950/70 border border-amber-900 rounded-2xl">
@@ -451,22 +675,8 @@ export default function Ubricalipsis() {
         </CardContent>
       </Card>
 
-      {/* Información secundaria: equilibrio del mazo y último evento, fuera del golpe de vista principal */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <DeckSummary />
-        <Card className="bg-stone-950/70 border border-amber-900 rounded-2xl">
-          <CardContent className="p-4">
-            <h2 className="text-xl font-bold text-amber-300 mb-3">Último evento</h2>
-            <AnimatePresence mode="wait">
-              {lastEvent ? <motion.div key={lastEvent.id + game.turn} initial={{ rotateY: 90, opacity: 0 }} animate={{ rotateY: 0, opacity: 1 }} exit={{ rotateY: -90, opacity: 0 }} className="rounded-2xl bg-red-950/60 border border-red-800 p-4">
-                <div className="font-black text-lg">{lastEvent.name}</div>
-                <div className="text-xs text-red-200/70">{lastEvent.type}</div>
-                <p className="mt-3 text-sm">{lastEvent.text}</p>
-              </motion.div> : <p className="text-amber-100/60">Aún no ha aparecido ningún evento.</p>}
-            </AnimatePresence>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Equilibrio del mazo: información secundaria, fuera del golpe de vista principal */}
+      <DeckSummary />
     </div>
   </div>;
 }
