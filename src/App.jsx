@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart, Crosshair, MapPin, Skull, Beer, Wrench, Home, Siren, Shield,
   Footprints, Search, RotateCcw, Flag, Backpack, Zap, HelpCircle, X,
-  UserRound, Sparkles, AlertTriangle, CheckCircle2, XCircle
+  Sparkles, AlertTriangle, CheckCircle2, XCircle, ChevronDown,
+  ChevronUp, Info
 } from 'lucide-react';
 
 function Button({ children, className = '', ...props }) {
@@ -106,6 +107,45 @@ const EDGES = Object.entries(MAP).flatMap(([from, n]) => n.options.map(to => ({ 
 const typeIcons = { Inicio: MapPin, 'Zona abierta': Siren, Taller: Wrench, Refugio: Home, Barricada: Skull, Clínica: Heart, Salida: Flag };
 const typeColors = { Inicio: 'bg-amber-500 text-stone-950 border-amber-200', 'Zona abierta': 'bg-red-950 text-red-100 border-red-700', Taller: 'bg-orange-900 text-orange-100 border-orange-600', Refugio: 'bg-emerald-950 text-emerald-100 border-emerald-700', Barricada: 'bg-stone-800 text-stone-100 border-stone-500', Clínica: 'bg-sky-950 text-sky-100 border-sky-700', Salida: 'bg-green-800 text-green-50 border-green-400' };
 
+const NODE_TYPE_INFO = {
+  'Zona abierta': { tone: 'bad', summary: 'Sin cobertura. Te ven desde todas partes.', detail: 'Al llegar se resolverán 2 eventos en vez de 1. OCULTARSE no sirve de nada aquí: no hay dónde meterse.' },
+  Taller: { tone: 'good', summary: 'Restos de ferretería o garaje. Hay piezas sueltas.', detail: 'Ganas +1 munición automáticamente al llegar.' },
+  Refugio: { tone: 'good', summary: 'Un sitio para parar y reorganizarte un momento.', detail: 'Robarás 1 carta extra en tu próximo turno.' },
+  Barricada: { tone: 'bad', summary: 'El paso está obstruido con escombros o muebles.', detail: 'Pierdes 1 acción este turno al abrirte camino.' },
+  Clínica: { tone: 'good', summary: 'Botiquín, ambulatorio o farmacia saqueada.', detail: 'Recuperas +2 salud automáticamente al llegar.' },
+  Salida: { tone: 'good', summary: 'El final del camino. La libertad, si llegas con vida.', detail: 'Llegar aquí significa que has escapado de Ubricalipsis.' },
+  Inicio: { tone: 'neutral', summary: 'Plaza del Ayuntamiento. Donde empieza todo.', detail: 'Tu punto de partida.' },
+};
+
+function SurvivorIcon({ size = 28, className = '' }) {
+  return (
+    <svg viewBox="0 0 48 48" width={size} height={size} className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* backpack strap */}
+      <path d="M14 20 Q12 30 14 38" stroke="#3f3022" strokeWidth="3" strokeLinecap="round" />
+      {/* backpack body */}
+      <rect x="6" y="19" width="9" height="14" rx="3" fill="#5b4326" stroke="#2c2014" strokeWidth="1.5" />
+      <rect x="8" y="22" width="5" height="3" rx="1" fill="#7a5c34" />
+      {/* body / coat */}
+      <path d="M16 22 Q24 17 32 22 L33 40 Q24 44 15 40 Z" fill="#3c4a3a" stroke="#1f2a1d" strokeWidth="1.5" />
+      {/* belt */}
+      <rect x="16" y="31" width="16" height="2.4" fill="#2c2014" />
+      {/* arms */}
+      <path d="M16 23 Q11 27 12 33" stroke="#3c4a3a" strokeWidth="4" strokeLinecap="round" />
+      <path d="M32 23 Q37 27 35 32" stroke="#3c4a3a" strokeWidth="4" strokeLinecap="round" />
+      {/* head */}
+      <circle cx="24" cy="13" r="7" fill="#caa874" stroke="#7a5c34" strokeWidth="1.2" />
+      {/* hood / hair */}
+      <path d="M17 12 Q17 5 24 5 Q31 5 31 12 Q31 8 24 8 Q17 8 17 12Z" fill="#241c12" />
+      {/* mascarilla / pañuelo */}
+      <path d="M18.5 14.5 Q24 19 29.5 14.5 L29 17.5 Q24 21 19 17.5 Z" fill="#8a2f2f" stroke="#5c1c1c" strokeWidth="0.8" />
+      {/* eyes glint */}
+      <circle cx="21" cy="12.5" r="0.9" fill="#1c140a" />
+      <circle cx="27" cy="12.5" r="0.9" fill="#1c140a" />
+    </svg>
+  );
+}
+
+
 const MOVE_REACTIONS = [
   { kind: 'good', title: 'Atajo inesperado', text: 'Una vecina te señala una calle limpia. Recuperas 1 salud.', effect: s => ({ ...s, health: Math.min(MAX_HEALTH, s.health + 1) }), log: '✨ Reacción buena de movimiento: recuperas 1 salud.' },
   { kind: 'good', title: 'Bolso abandonado', text: 'Encuentras un cargador oculto. Ganas 1 munición.', effect: s => ({ ...s, ammo: Math.min(MAX_AMMO, s.ammo + 1) }), log: '✨ Reacción buena de movimiento: ganas 1 munición.' },
@@ -192,12 +232,96 @@ function ActionReactionModal({ reaction, mitigationCards, onApply, onMitigate })
   const color = isBad ? 'border-red-500 bg-red-950/95' : 'border-green-500 bg-green-950/95';
   return <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.div initial={{ scale: .72, rotate: 2, y: 40 }} animate={{ scale: 1, rotate: 0, y: 0 }} exit={{ scale: .88, opacity: 0 }} transition={{ type: 'spring', stiffness: 220, damping: 18 }} className={`w-full max-w-xl rounded-3xl border-2 ${color} p-6 text-amber-50 shadow-2xl`}><div className="flex items-center gap-3"><div className="rounded-2xl bg-black/30 p-3 text-amber-300">{isBad ? <AlertTriangle className="h-8 w-8" /> : <Sparkles className="h-8 w-8" />}</div><div><p className="text-xs uppercase tracking-[0.35em] text-amber-200/70">Reacción de acción</p><h2 className="text-2xl font-black text-amber-300">{reaction.title}</h2></div></div><p className="mt-4 text-sm text-amber-100/85">La carta <b>{reaction.sourceCard}</b> desencadena una consecuencia.</p><p className="mt-3 rounded-2xl border border-amber-800/50 bg-black/25 p-4">{reaction.text}</p>{isBad && mitigationCards.length > 0 && <div className="mt-5 rounded-2xl border border-yellow-500/50 bg-yellow-950/30 p-4"><p className="mb-3 text-sm font-bold text-yellow-100">Puedes usar otra carta de acción para paliarla y cancelar el efecto:</p><div className="grid gap-2 sm:grid-cols-2">{mitigationCards.map(card => <Button key={card.uid} onClick={() => onMitigate(card)} className="bg-yellow-400 text-stone-950 hover:bg-yellow-300 text-left font-black">{ACTION_META[card.type].icon} {card.name}</Button>)}</div></div>}{isBad && mitigationCards.length === 0 && <div className="mt-5 rounded-2xl border border-red-500/50 bg-red-950/30 p-4 text-sm text-red-100">No tienes cartas de acción para paliarla. Tendrás que asumirla.</div>}<Button onClick={onApply} className={`mt-5 w-full font-black ${isBad ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-amber-500 hover:bg-amber-400 text-stone-950'}`}>{isBad ? 'Asumir reacción' : 'Continuar'}</Button></motion.div></motion.div>;
 }
-function BranchMap({ current, chosenNext, onChoose }) {
+function BranchMap({ current, chosenNext, onChoose, health, ammo }) {
   const currentOptions = MAP[current].options;
   const currentNode = MAP[current];
-  return <div className="overflow-x-auto rounded-2xl border border-amber-900/70 bg-stone-950/70 p-2 shadow-inner"><div className="relative h-[350px] min-w-[980px] overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_center,#3a2818,#120d09_72%)]"><div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(30deg, rgba(245,158,11,.22) 1px, transparent 1px), linear-gradient(150deg, rgba(245,158,11,.16) 1px, transparent 1px)', backgroundSize: '24px 24px' }} /><svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">{EDGES.map(e => { const a = MAP[e.from]; const b = MAP[e.to]; const active = e.from === current && e.to === chosenNext; const available = e.from === current && currentOptions.includes(e.to); return <motion.line key={`${e.from}-${e.to}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={active ? '#facc15' : available ? '#f59e0b' : '#57534e'} strokeWidth={active ? 1.1 : available ? .8 : .45} strokeDasharray={active ? '2 1' : available ? '1.5 1.5' : '0'} opacity={active ? 1 : available ? .9 : .4} />; })}</svg><motion.div className="absolute z-20 -translate-x-1/2 -translate-y-1/2" animate={{ left: `${currentNode.x}%`, top: `${currentNode.y}%` }} transition={{ type: 'spring', stiffness: 70, damping: 14, mass: .9 }}><div className="flex h-12 w-12 items-center justify-center rounded-full border-4 border-yellow-300 bg-amber-500 text-stone-950 shadow-[0_0_30px_rgba(250,204,21,.8)]"><UserRound className="h-7 w-7" /></div></motion.div>{Object.entries(MAP).map(([id, n]) => { const Icon = typeIcons[n.type] || MapPin; const active = id === current; const selectable = currentOptions.includes(id); const selected = chosenNext === id; return <motion.button key={id} onClick={() => selectable && onChoose(id)} whileHover={{ scale: selectable ? 1.08 : 1.02 }} className={`absolute z-10 -translate-x-1/2 -translate-y-1/2 w-28 rounded-2xl border-2 p-2 text-center shadow-xl backdrop-blur-sm transition ${typeColors[n.type]} ${selectable ? 'cursor-pointer ring-4 ring-amber-400/50' : 'cursor-default opacity-90'} ${selected ? 'ring-4 ring-yellow-300 shadow-yellow-500/40' : ''} ${active ? 'opacity-100' : ''}`} style={{ left: `${n.x}%`, top: `${n.y}%` }}><div className="flex justify-center"><Icon className="h-5 w-5" /></div><div className="mt-1 text-xs font-black leading-tight">{n.short}</div><div className="text-[10px] opacity-80">{n.type}</div>{selected && !active && <div className="mt-1 rounded-full bg-yellow-300 px-1 text-[10px] font-black text-stone-950">RUTA</div>}</motion.button>; })}</div><p className="px-2 py-2 text-xs text-amber-100/70">Tablero horizontal: en móvil puedes deslizar lateralmente. La ficha marca tu posición y se anima al moverte.</p></div>;
+  const healthPct = health / MAX_HEALTH;
+  const ammoPct = ammo / MAX_AMMO;
+  const healthTone = healthPct <= 0.3 ? '#ef4444' : healthPct <= 0.6 ? '#f59e0b' : '#4ade80';
+  return <div className="overflow-x-auto rounded-2xl border border-amber-900/70 bg-stone-950/70 p-2 shadow-inner"><div className="relative h-[350px] min-w-[980px] overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_center,#3a2818,#120d09_72%)]">
+    <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(30deg, rgba(245,158,11,.22) 1px, transparent 1px), linear-gradient(150deg, rgba(245,158,11,.16) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+
+    {/* HUD integrado: salud y munición, esquina superior izquierda del tablero */}
+    <div className="absolute left-3 top-3 z-30 flex flex-col gap-1.5 rounded-xl border border-amber-700/60 bg-stone-950/85 px-3 py-2 backdrop-blur-sm shadow-lg">
+      <div className="flex items-center gap-2">
+        <Heart className="h-3.5 w-3.5 shrink-0" style={{ color: healthTone }} />
+        <div className="flex gap-[2px]">{Array.from({ length: MAX_HEALTH }).map((_, i) => <motion.span key={i} animate={{ scale: i < health ? [1, 1.2, 1] : 1 }} className="h-2.5 w-2 rounded-[1px]" style={{ background: i < health ? healthTone : 'rgba(120,113,108,.35)' }} />)}</div>
+        <span className="ml-0.5 text-[11px] font-black tabular-nums text-amber-50">{health}/{MAX_HEALTH}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Crosshair className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+        <div className="flex gap-[2px]">{Array.from({ length: MAX_AMMO }).map((_, i) => <motion.span key={i} animate={{ scale: i < ammo ? [1, 1.2, 1] : 1 }} className="h-2.5 w-2 rounded-[1px]" style={{ background: i < ammo ? '#fbbf24' : 'rgba(120,113,108,.35)' }} />)}</div>
+        <span className="ml-0.5 text-[11px] font-black tabular-nums text-amber-50">{ammo}/{MAX_AMMO}</span>
+      </div>
+    </div>
+
+    <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">{EDGES.map(e => { const a = MAP[e.from]; const b = MAP[e.to]; const active = e.from === current && e.to === chosenNext; const available = e.from === current && currentOptions.includes(e.to); return <motion.line key={`${e.from}-${e.to}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={active ? '#facc15' : available ? '#f59e0b' : '#57534e'} strokeWidth={active ? 1.1 : available ? .8 : .45} strokeDasharray={active ? '2 1' : available ? '1.5 1.5' : '0'} opacity={active ? 1 : available ? .9 : .4} />; })}</svg>
+
+    <motion.div className="absolute z-20 -translate-x-1/2 -translate-y-1/2" animate={{ left: `${currentNode.x}%`, top: `${currentNode.y}%` }} transition={{ type: 'spring', stiffness: 70, damping: 14, mass: .9 }}>
+      <motion.div animate={{ boxShadow: ['0 0 16px rgba(250,204,21,.55)', '0 0 28px rgba(250,204,21,.9)', '0 0 16px rgba(250,204,21,.55)'] }} transition={{ repeat: Infinity, duration: 2.2 }} className="flex h-12 w-12 items-center justify-center rounded-full border-4 border-yellow-300 bg-gradient-to-b from-amber-200 to-amber-500 text-stone-950">
+        <SurvivorIcon size={26} />
+      </motion.div>
+    </motion.div>
+
+    {Object.entries(MAP).map(([id, n]) => { const Icon = typeIcons[n.type] || MapPin; const active = id === current; const selectable = currentOptions.includes(id); const selected = chosenNext === id; return <motion.button key={id} onClick={() => selectable && onChoose(id)} whileHover={{ scale: selectable ? 1.08 : 1.02 }} className={`absolute z-10 -translate-x-1/2 -translate-y-1/2 w-28 rounded-2xl border-2 p-2 text-center shadow-xl backdrop-blur-sm transition ${typeColors[n.type]} ${selectable ? 'cursor-pointer ring-4 ring-amber-400/50' : 'cursor-default opacity-90'} ${selected ? 'ring-4 ring-yellow-300 shadow-yellow-500/40' : ''} ${active ? 'opacity-100' : ''}`} style={{ left: `${n.x}%`, top: `${n.y}%` }}><div className="flex justify-center"><Icon className="h-5 w-5" /></div><div className="mt-1 text-xs font-black leading-tight">{n.short}</div><div className="text-[10px] opacity-80">{n.type}</div>{selected && !active && <div className="mt-1 rounded-full bg-yellow-300 px-1 text-[10px] font-black text-stone-950">RUTA</div>}</motion.button>; })}
+  </div><p className="px-2 py-2 text-xs text-amber-100/70">Tablero horizontal: en móvil puedes deslizar lateralmente. Tu salud y munición se ven en la esquina del mapa.</p></div>;
 }
-function GameLog({ log }) { return <Card className="bg-stone-950/80 border border-amber-700 rounded-2xl shadow-xl"><CardContent className="p-4"><div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-bold text-amber-300">Registro</h2><span className="text-xs text-amber-100/50">Últimos acontecimientos</span></div><div className="space-y-2 max-h-[220px] overflow-auto pr-1"><AnimatePresence initial={false}>{log.map(entry => <motion.div key={entry.id} initial={{ x: 24, opacity: 0, scale: .98 }} animate={{ x: 0, opacity: 1, scale: 1, backgroundColor: entry.fresh ? 'rgba(250, 204, 21, 0.22)' : 'rgba(28, 25, 23, 0.82)', borderColor: entry.fresh ? 'rgba(250, 204, 21, 0.95)' : 'rgba(120, 53, 15, 0.50)', boxShadow: entry.fresh ? ['0 0 0 rgba(250,204,21,0)', '0 0 22px rgba(250,204,21,0.55)', '0 0 0 rgba(250,204,21,0)'] : '0 0 0 rgba(0,0,0,0)' }} exit={{ x: -20, opacity: 0 }} transition={{ duration: .35, boxShadow: { duration: 1.2 } }} className="rounded-xl border p-2 text-sm text-amber-50">{entry.text}</motion.div>)}</AnimatePresence></div></CardContent></Card>; }
+
+function RouteInfoPanel({ nodeId }) {
+  if (!nodeId) return null;
+  const node = MAP[nodeId];
+  const info = NODE_TYPE_INFO[node.type];
+  const Icon = typeIcons[node.type] || MapPin;
+  const toneStyles = info.tone === 'bad'
+    ? 'border-red-700/70 bg-red-950/40'
+    : info.tone === 'good'
+      ? 'border-emerald-700/60 bg-emerald-950/30'
+      : 'border-amber-700/60 bg-amber-950/30';
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div key={nodeId} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: .22 }} className={`mt-2 rounded-2xl border p-3 ${toneStyles}`}>
+        <div className="flex items-start gap-3">
+          <div className="rounded-xl bg-black/30 p-2"><Icon className="h-5 w-5 text-amber-200" /></div>
+          <div className="flex-1">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <h3 className="font-black text-amber-200">{node.name}</h3>
+              <span className="text-[11px] uppercase tracking-wider text-amber-100/60">{node.type}</span>
+            </div>
+            <p className="mt-0.5 text-sm text-amber-50/90">{info.summary}</p>
+            <p className="mt-1 text-xs text-amber-100/70"><Info className="mr-1 inline h-3 w-3" />{info.detail}</p>
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+function GameLog({ log }) {
+  const [open, setOpen] = useState(false);
+  const latest = log[0];
+  return (
+    <div className="rounded-2xl border border-amber-700/70 bg-stone-950/80 shadow-xl overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition hover:bg-stone-900/60">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">Registro</span>
+          <AnimatePresence mode="wait">
+            <motion.span key={latest?.id || 'empty'} initial={{ opacity: 0, x: 6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -6 }} className="truncate text-sm text-amber-50/90">{latest ? latest.text : 'Sin acontecimientos todavía.'}</motion.span>
+          </AnimatePresence>
+        </div>
+        {open ? <ChevronUp className="h-4 w-4 shrink-0 text-amber-300" /> : <ChevronDown className="h-4 w-4 shrink-0 text-amber-300" />}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: .25 }} className="overflow-hidden border-t border-amber-900/60">
+            <div className="max-h-[220px] space-y-2 overflow-auto p-3 pr-2">
+              <AnimatePresence initial={false}>{log.map(entry => <motion.div key={entry.id} initial={{ x: 24, opacity: 0, scale: .98 }} animate={{ x: 0, opacity: 1, scale: 1, backgroundColor: entry.fresh ? 'rgba(250, 204, 21, 0.22)' : 'rgba(28, 25, 23, 0.82)', borderColor: entry.fresh ? 'rgba(250, 204, 21, 0.95)' : 'rgba(120, 53, 15, 0.50)' }} exit={{ x: -20, opacity: 0 }} transition={{ duration: .3 }} className="rounded-xl border p-2 text-sm text-amber-50">{entry.text}</motion.div>)}</AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 function DeckSummary() { const actionCounts = ACTION_DECK.reduce((acc, c) => ({ ...acc, [c.type]: (acc[c.type] || 0) + 1 }), {}); return <Card className="bg-stone-950/70 border border-amber-900 rounded-2xl"><CardContent className="p-4"><h2 className="text-xl font-bold text-amber-300 mb-3">Equilibrio beta</h2><div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3"><div className="rounded-xl bg-stone-900/80 p-2 border border-amber-900/50"><Backpack className="h-4 w-4 inline mr-1" />Acciones: <b>{ACTION_DECK.length}</b></div><div className="rounded-xl bg-stone-900/80 p-2 border border-amber-900/50"><Zap className="h-4 w-4 inline mr-1" />Preguntas: <b>{UBRIQUE_QUESTIONS.length}</b></div><div className="rounded-xl bg-stone-900/80 p-2 border border-amber-900/50">Moverse: <b>{actionCounts.move}</b></div><div className="rounded-xl bg-stone-900/80 p-2 border border-amber-900/50">Robo: <b>-1 salud</b></div><div className="rounded-xl bg-stone-900/80 p-2 border border-amber-900/50">Garantía: <b>≤2 robos</b></div><div className="rounded-xl bg-stone-900/80 p-2 border border-amber-900/50">Reacción: <b>acción/mov.</b></div></div></CardContent></Card>; }
 
 export default function Ubricalipsis() {
@@ -269,5 +393,80 @@ export default function Ubricalipsis() {
   function reset() { setGame(createInitialGame()); setPendingMoveReaction(null); setPendingActionReaction(null); setLastEvent(null); setLog([createLogEntry('Nueva partida. Empiezas con MOVERSE.', true), createLogEntry('🩸 Terminar turno cuesta 1 salud.', true), createLogEntry('🎲 Movimientos y acciones tienen reacción.', true)]); }
 
   if (!started) return <div className="relative min-h-screen p-4 text-amber-50 flex items-center justify-center overflow-hidden sm:p-6" style={{ backgroundImage: `linear-gradient(rgba(10, 8, 6, 0.50), rgba(10, 8, 6, 0.82)), url('${import.meta.env.BASE_URL}fondo-inicio.png')`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}><div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.10),rgba(0,0,0,0.68))]" /><AnimatePresence>{showHelp && <HelpModal onClose={() => setShowHelp(false)} />}</AnimatePresence><Card className="relative z-10 max-w-xl w-full bg-stone-950/75 border border-amber-700/80 shadow-2xl rounded-2xl backdrop-blur-md"><CardContent className="p-5 space-y-5 sm:p-8"><div><p className="mb-2 text-xs uppercase tracking-[0.25em] text-amber-200/80 sm:tracking-[0.35em]">Supervivencia en Ubrique</p><h1 className="text-4xl font-black tracking-tight text-amber-300 drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] sm:text-6xl">UBRICALIPSIS</h1><p className="mt-4 text-sm text-amber-100/90 leading-relaxed sm:text-base">Una explosión bajo Ubrique ha convertido a medio pueblo en zombies que chupan vitalidad. Tu misión: llegar a La Frontera.</p></div><input value={player} onChange={e => setPlayer(e.target.value)} placeholder="Nombre del superviviente" className="w-full rounded-xl bg-stone-950/80 border border-amber-700 p-3 outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-amber-100/40" /><div className="grid gap-3 sm:grid-cols-2"><Button onClick={() => setStarted(true)} className="rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black shadow-lg shadow-black/40">Empezar huida</Button><Button onClick={() => setShowHelp(true)} className="rounded-xl bg-stone-950/80 hover:bg-stone-900 border border-amber-700 text-amber-100"><HelpCircle className="h-4 w-4 inline mr-2" />Cómo jugar</Button></div></CardContent></Card></div>;
-  return <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#76552d,#1a130d_60%)] text-amber-50 p-3 sm:p-4 md:p-6"><AnimatePresence>{showHelp && <HelpModal onClose={() => setShowHelp(false)} />}</AnimatePresence><AnimatePresence>{pendingMoveReaction && <MovementReactionModal reaction={pendingMoveReaction} onApply={() => applyMoveReaction(pendingMoveReaction)} onAnswer={answer => applyMoveReaction(pendingMoveReaction, answer)} />}</AnimatePresence><AnimatePresence>{pendingActionReaction && <ActionReactionModal reaction={pendingActionReaction} mitigationCards={game.hand.filter(c => c.type !== 'move')} onApply={() => applyActionReaction(pendingActionReaction)} onMitigate={card => mitigateActionReaction(card)} />}</AnimatePresence><div className="mx-auto max-w-7xl space-y-4"><header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between"><div><h1 className="text-3xl font-black text-amber-300 drop-shadow sm:text-4xl">UBRICALIPSIS</h1><p className="text-sm text-amber-100/75 sm:text-base">Superviviente: <b>{player || 'Anónimo/a'}</b> · Turno {game.turn} · Acciones: {game.actionsLeft}</p></div><div className="grid grid-cols-2 gap-2 sm:flex"><Button onClick={() => setShowHelp(true)} className="rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black"><HelpCircle className="h-4 w-4 mr-2 inline" />Cómo jugar</Button><Button onClick={reset} className="rounded-xl border border-amber-700 text-amber-100 bg-stone-950/40 hover:bg-stone-900"><RotateCcw className="h-4 w-4 mr-2 inline" />Reiniciar</Button></div></header><GameLog log={log} /><Card className="bg-stone-950/70 border border-amber-900 rounded-2xl"><CardContent className="p-3 sm:p-4"><h2 className="text-xl font-bold text-amber-300 mb-3">Tablero de huida</h2><BranchMap current={game.current} chosenNext={game.chosenNext} onChoose={chooseNext} /></CardContent></Card><div className="grid gap-4 xl:grid-cols-[1.05fr_.95fr]"><section className="space-y-4"><Card className="bg-stone-950/70 border border-amber-900 rounded-2xl shadow-xl"><CardContent className="p-4 space-y-4"><div className="grid gap-4 sm:grid-cols-2"><PipBar value={game.health} max={MAX_HEALTH} icon={Heart} label="Salud" /><PipBar value={game.ammo} max={MAX_AMMO} icon={Crosshair} label="Munición" /></div><div className={`rounded-2xl border p-3 text-sm ${game.needsActionAfterMove ? 'border-yellow-400 bg-yellow-950/50 text-yellow-50' : 'border-amber-700/70 bg-amber-950/40 text-amber-50'}`}><b className="text-amber-300">💡 Consejo actual:</b> {tip}</div>{game.status !== 'playing' && <motion.div initial={{ scale: .9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`rounded-2xl p-5 text-center font-black text-2xl ${game.status === 'won' ? 'bg-green-900/60 text-green-100' : 'bg-red-950/70 text-red-100'}`}>{game.status === 'won' ? '¡VICTORIA! Has escapado de Ubrique.' : 'DERROTA. Te han absorbido la vitalidad.'}</motion.div>}</CardContent></Card><Card className="bg-stone-950/70 border border-amber-900 rounded-2xl"><CardContent className="p-4"><div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><h2 className="text-xl font-bold text-amber-300">Mano de cartas</h2><Button onClick={endTurn} className="rounded-xl bg-stone-800 hover:bg-stone-700 border border-amber-800">Terminar turno (-1 salud)</Button></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><AnimatePresence>{game.hand.map((card, idx) => { const Icon = ACTION_ICONS[card.type]; const meta = ACTION_META[card.type]; const shouldHighlightMove = card.type === 'move' && !!game.chosenNext && game.status === 'playing'; const shouldHighlightAction = game.needsActionAfterMove && card.type !== 'move' && game.status === 'playing'; return <motion.div key={card.uid} initial={{ y: -80, opacity: 0, rotate: -8 }} animate={{ y: 0, opacity: 1, rotate: 0, boxShadow: shouldHighlightMove || shouldHighlightAction ? ['0 0 0 rgba(250,204,21,0)', '0 0 26px rgba(250,204,21,.75)', '0 0 0 rgba(250,204,21,0)'] : '0 12px 24px rgba(0,0,0,.35)' }} exit={{ y: -140, opacity: 0, rotate: 14 }} transition={{ delay: idx * .08, boxShadow: { repeat: shouldHighlightMove || shouldHighlightAction ? Infinity : 0, duration: 1.3 } }} whileHover={{ y: -8, rotateX: 6 }} onClick={() => playCard(card)} className={`relative cursor-pointer rounded-2xl bg-gradient-to-br from-amber-200 to-stone-300 text-stone-950 border-4 shadow-xl p-4 min-h-48 flex flex-col ${shouldHighlightMove || shouldHighlightAction ? 'border-yellow-400 ring-4 ring-yellow-300/60' : 'border-stone-800'}`}>{shouldHighlightMove && <div className="absolute -top-3 left-3 rounded-full bg-yellow-300 px-3 py-1 text-[11px] font-black text-stone-950 shadow">ÚSALA PARA AVANZAR</div>}{shouldHighlightAction && <div className="absolute -top-3 left-3 rounded-full bg-yellow-300 px-3 py-1 text-[11px] font-black text-stone-950 shadow">JUEGA UNA ACCIÓN</div>}<div className="flex justify-between items-start"><h3 className="font-black text-lg leading-tight">{card.name}</h3><Icon className="h-6 w-6 shrink-0" /></div><p className="text-xs font-black mt-1 uppercase">{meta.icon} {meta.label} · Coste: {card.cost}</p><p className="mt-4 text-sm leading-relaxed">{card.text}</p></motion.div>; })}</AnimatePresence></div></CardContent></Card></section><section className="space-y-4"><DeckSummary /><Card className="bg-stone-950/70 border border-amber-900 rounded-2xl"><CardContent className="p-4"><h2 className="text-xl font-bold text-amber-300 mb-3">Último evento</h2><AnimatePresence mode="wait">{lastEvent ? <motion.div key={lastEvent.id + game.turn} initial={{ rotateY: 90, opacity: 0 }} animate={{ rotateY: 0, opacity: 1 }} exit={{ rotateY: -90, opacity: 0 }} className="rounded-2xl bg-red-950/60 border border-red-800 p-4"><div className="font-black text-lg">{lastEvent.name}</div><div className="text-xs text-red-200/70">{lastEvent.type}</div><p className="mt-3 text-sm">{lastEvent.text}</p></motion.div> : <p className="text-amber-100/60">Aún no ha aparecido ningún evento.</p>}</AnimatePresence></CardContent></Card></section></div></div></div>;
+  return <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#76552d,#1a130d_60%)] text-amber-50 p-3 sm:p-4 md:p-6">
+    <AnimatePresence>{showHelp && <HelpModal onClose={() => setShowHelp(false)} />}</AnimatePresence>
+    <AnimatePresence>{pendingMoveReaction && <MovementReactionModal reaction={pendingMoveReaction} onApply={() => applyMoveReaction(pendingMoveReaction)} onAnswer={answer => applyMoveReaction(pendingMoveReaction, answer)} />}</AnimatePresence>
+    <AnimatePresence>{pendingActionReaction && <ActionReactionModal reaction={pendingActionReaction} mitigationCards={game.hand.filter(c => c.type !== 'move')} onApply={() => applyActionReaction(pendingActionReaction)} onMitigate={card => mitigateActionReaction(card)} />}</AnimatePresence>
+
+    <div className="mx-auto max-w-7xl space-y-3">
+      <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-3xl font-black text-amber-300 drop-shadow sm:text-4xl">UBRICALIPSIS</h1>
+          <p className="text-sm text-amber-100/75 sm:text-base">Superviviente: <b>{player || 'Anónimo/a'}</b> · Turno {game.turn} · Acciones: {game.actionsLeft}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <Button onClick={() => setShowHelp(true)} className="rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black"><HelpCircle className="h-4 w-4 mr-2 inline" />Cómo jugar</Button>
+          <Button onClick={reset} className="rounded-xl border border-amber-700 text-amber-100 bg-stone-950/40 hover:bg-stone-900"><RotateCcw className="h-4 w-4 mr-2 inline" />Reiniciar</Button>
+        </div>
+      </header>
+
+      {/* Registro colapsado: barra fina con el último evento */}
+      <GameLog log={log} />
+
+      {/* Tablero con HUD de salud/munición integrado + panel de ruta seleccionada */}
+      <Card className="bg-stone-950/70 border border-amber-900 rounded-2xl">
+        <CardContent className="p-3 sm:p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-amber-300">Tablero de huida</h2>
+            {game.status !== 'playing' && <span className={`rounded-full px-3 py-1 text-xs font-black ${game.status === 'won' ? 'bg-green-900/70 text-green-100' : 'bg-red-950/80 text-red-100'}`}>{game.status === 'won' ? 'VICTORIA' : 'DERROTA'}</span>}
+          </div>
+          <BranchMap current={game.current} chosenNext={game.chosenNext} onChoose={chooseNext} health={game.health} ammo={game.ammo} />
+          <RouteInfoPanel nodeId={game.chosenNext && game.chosenNext !== game.current ? game.chosenNext : null} />
+          <div className={`mt-2 rounded-2xl border p-3 text-sm ${game.needsActionAfterMove ? 'border-yellow-400 bg-yellow-950/50 text-yellow-50' : 'border-amber-700/70 bg-amber-950/40 text-amber-50'}`}><b className="text-amber-300">💡 Consejo actual:</b> {tip}</div>
+          {game.status !== 'playing' && <motion.div initial={{ scale: .9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`mt-2 rounded-2xl p-5 text-center font-black text-2xl ${game.status === 'won' ? 'bg-green-900/60 text-green-100' : 'bg-red-950/70 text-red-100'}`}>{game.status === 'won' ? '¡VICTORIA! Has escapado de Ubrique.' : 'DERROTA. Te han absorbido la vitalidad.'}</motion.div>}
+        </CardContent>
+      </Card>
+
+      {/* Mano de cartas: pegada al tablero para mantener todo en un golpe de vista */}
+      <Card className="bg-stone-950/70 border border-amber-900 rounded-2xl">
+        <CardContent className="p-4">
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-xl font-bold text-amber-300">Mano de cartas</h2>
+            <Button onClick={endTurn} className="rounded-xl bg-stone-800 hover:bg-stone-700 border border-amber-800">Terminar turno (-1 salud)</Button>
+          </div>
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+            <AnimatePresence>{game.hand.map((card, idx) => {
+              const Icon = ACTION_ICONS[card.type]; const meta = ACTION_META[card.type];
+              const shouldHighlightMove = card.type === 'move' && !!game.chosenNext && game.status === 'playing';
+              const shouldHighlightAction = game.needsActionAfterMove && card.type !== 'move' && game.status === 'playing';
+              return <motion.div key={card.uid} initial={{ y: -80, opacity: 0, rotate: -8 }} animate={{ y: 0, opacity: 1, rotate: 0, boxShadow: shouldHighlightMove || shouldHighlightAction ? ['0 0 0 rgba(250,204,21,0)', '0 0 26px rgba(250,204,21,.75)', '0 0 0 rgba(250,204,21,0)'] : '0 12px 24px rgba(0,0,0,.35)' }} exit={{ y: -140, opacity: 0, rotate: 14 }} transition={{ delay: idx * .08, boxShadow: { repeat: shouldHighlightMove || shouldHighlightAction ? Infinity : 0, duration: 1.3 } }} whileHover={{ y: -8, rotateX: 6 }} onClick={() => playCard(card)} className={`relative cursor-pointer rounded-2xl bg-gradient-to-br from-amber-200 to-stone-300 text-stone-950 border-4 shadow-xl p-3.5 min-h-[150px] flex flex-col ${shouldHighlightMove || shouldHighlightAction ? 'border-yellow-400 ring-4 ring-yellow-300/60' : 'border-stone-800'}`}>
+                {shouldHighlightMove && <div className="absolute -top-3 left-3 rounded-full bg-yellow-300 px-3 py-1 text-[11px] font-black text-stone-950 shadow">ÚSALA PARA AVANZAR</div>}
+                {shouldHighlightAction && <div className="absolute -top-3 left-3 rounded-full bg-yellow-300 px-3 py-1 text-[11px] font-black text-stone-950 shadow">JUEGA UNA ACCIÓN</div>}
+                <div className="flex justify-between items-start"><h3 className="font-black text-base leading-tight">{card.name}</h3><Icon className="h-5 w-5 shrink-0" /></div>
+                <p className="text-xs font-black mt-1 uppercase">{meta.icon} {meta.label} · Coste: {card.cost}</p>
+                <p className="mt-2.5 text-sm leading-relaxed flex-1">{card.text}</p>
+              </motion.div>;
+            })}</AnimatePresence>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Información secundaria: equilibrio del mazo y último evento, fuera del golpe de vista principal */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <DeckSummary />
+        <Card className="bg-stone-950/70 border border-amber-900 rounded-2xl">
+          <CardContent className="p-4">
+            <h2 className="text-xl font-bold text-amber-300 mb-3">Último evento</h2>
+            <AnimatePresence mode="wait">
+              {lastEvent ? <motion.div key={lastEvent.id + game.turn} initial={{ rotateY: 90, opacity: 0 }} animate={{ rotateY: 0, opacity: 1 }} exit={{ rotateY: -90, opacity: 0 }} className="rounded-2xl bg-red-950/60 border border-red-800 p-4">
+                <div className="font-black text-lg">{lastEvent.name}</div>
+                <div className="text-xs text-red-200/70">{lastEvent.type}</div>
+                <p className="mt-3 text-sm">{lastEvent.text}</p>
+              </motion.div> : <p className="text-amber-100/60">Aún no ha aparecido ningún evento.</p>}
+            </AnimatePresence>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  </div>;
 }
